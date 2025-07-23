@@ -1,0 +1,36 @@
+{
+    "name": "palpalette-backend",
+    "version": "0.1.0",
+    "description": "Backend for PalPalette color sharing system",
+    "main": "dist/main.js",
+    "scripts": {
+        "start": "nest start",
+        "start:dev": "nest start --watch",
+        "build": "nest build",
+        "format": "prettier --write \"src/**/*.ts\""
+    },
+    "dependencies": {
+        "@nestjs/core": "^10.0.0",
+        "@nestjs/common": "^10.0.0",
+        "@nestjs/platform-express": "^10.0.0",
+        "@nestjs/typeorm": "^10.0.0",
+        "typeorm": "^0.3.17",
+        "pg": "^8.10.0",
+        "@nestjs/websockets": "^10.0.0",
+        "@nestjs/jwt": "^10.0.0",
+        "@nestjs/passport": "^10.0.0",
+        "passport": "^0.7.0",
+        "passport-jwt": "^4.0.1",
+        "class-validator": "^0.14.0",
+        "class-transformer": "^0.5.1",
+        "dotenv": "^16.0.3",
+        "reflect-metadata": "^0.1.13",
+        "rxjs": "^7.8.1"
+    },
+    "devDependencies": {
+        "@nestjs/cli": "^10.0.0",
+        "ts-node": "^10.9.1",
+        "typescript": "^5.0.4",
+        "nodemon": "^2.0.22"
+    }
+}

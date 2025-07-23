@@ -1,0 +1,39 @@
+# Node.js / NestJS
+node_modules/
+dist/
+.env
+.env.*
+.DS_Store
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Backend
+backend/node_modules/
+backend/dist/
+backend/.env
+backend/.env.*
+
+# Mobile App (future)
+mobile/node_modules/
+mobile/dist/
+mobile/.env
+
+# Firmware (future)
+firmware/build/
+firmware/.pioenvs/
+firmware/.pio/libdeps/
+
+# Misc
+*.swp 

@@ -1,0 +1,51 @@
+flowchart TD
+subgraph Mobile App
+A1["User takes photo"]
+A2["Extract colors (on-device)"]
+A3["Send colors to friend/group"]
+A4["Friend management"]
+A1 --> A2 --> A3
+A4
+end
+
+    subgraph Backend
+        B1["REST API (users, friends, logs, history)"]
+        B2["WebSocket Server (real-time color delivery)"]
+        B3["Device Registry"]
+        B4["Message Routing"]
+        B5["Database (users, devices, messages, logs)"]
+        B6["Admin Panel API"]
+        B1 --> B5
+        B2 --> B4
+        B4 --> B3
+        B4 --> B5
+        B6 --> B5
+    end
+
+    subgraph Edge Device
+        E1["Authenticate with backend"]
+        E2["WebSocket Client"]
+        E3["Receive color command"]
+        E4["Send color to Nanoleaf (local HTTP)"]
+        E5["Report status/errors"]
+        E6["OTA Updates"]
+        E1 --> E2 --> E3 --> E4
+        E3 --> E5
+        E6
+    end
+
+    subgraph Admin Panel
+        AP1["Secure login"]
+        AP2["View device status, logs, messages"]
+        AP3["Manage users/devices"]
+        AP1 --> AP2 --> AP3
+    end
+
+    A3 -- "REST API/WebSocket" --> B1
+    B2 -- "WebSocket" --> E2
+    E4 -- "Local HTTP" --> N1["Nanoleaf Panel"]
+    AP1 -- "REST API" --> B6
+    AP2 -- "REST API" --> B6
+    AP3 -- "REST API" --> B6
+    E5 -- "REST API" --> B1
+    E6 -- "OTA endpoint" --> B1
