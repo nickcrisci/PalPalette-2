@@ -42,6 +42,8 @@ interface DeviceAuthNotificationProps {
   onDismiss: () => void;
   onSuccess?: () => void;
   onFailed?: () => void;
+  onRetry?: () => void;
+  className?: string;
 }
 
 const DeviceAuthNotification: React.FC<DeviceAuthNotificationProps> = ({
@@ -51,6 +53,8 @@ const DeviceAuthNotification: React.FC<DeviceAuthNotificationProps> = ({
   onDismiss,
   onSuccess,
   onFailed,
+  onRetry,
+  className,
 }) => {
   const [authState, setAuthState] = useState<DeviceAuthenticationState | null>(
     null

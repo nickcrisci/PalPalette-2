@@ -19,6 +19,7 @@ import {
   LightingSystemStatus,
 } from "../../services/LightingSystemService";
 import { useLoading, useToast, useWebSocket } from "../../hooks";
+import { useDeveloperMode } from "../../hooks/useDeveloperMode";
 
 interface LightingSystemCardProps {
   deviceId: string;
@@ -28,6 +29,7 @@ interface LightingSystemCardProps {
 const LightingSystemCard: React.FC<LightingSystemCardProps> = memo(
   ({ deviceId, onConfigureClick }) => {
     const { loading, withLoading } = useLoading();
+    const { isDeveloperMode } = useDeveloperMode();
     const { toastState, showSuccess, hideToast } = useToast();
     const { lightingStatuses } = useWebSocket();
 
@@ -48,16 +50,54 @@ const LightingSystemCard: React.FC<LightingSystemCardProps> = memo(
 
     // Update status from WebSocket real-time updates
     useEffect(() => {
-      const wsStatus = lightingStatuses[deviceId];
+      const wsStatus = lightingStatuses.get(deviceId);
       if (wsStatus) {
         console.log("🔥 Updating lighting status from WebSocket:", wsStatus);
+
+        // Map WebSocket status to our lighting status enum
+        let lightingStatus:
+          | "unknown"
+          | "working"
+          | "error"
+          | "authentication_required" = "unknown";
+
+        // If device is ready and has a lighting system, it's working
+        if (wsStatus.isReady && wsStatus.hasLightingSystem) {
+          lightingStatus = "working";
+        } else if (wsStatus.status) {
+          const statusLower = wsStatus.status.toLowerCase();
+          if (
+            statusLower.includes("connected") ||
+            statusLower.includes("ready") ||
+            statusLower.includes("working") ||
+            statusLower.includes("success")
+          ) {
+            lightingStatus = "working";
+          } else if (
+            statusLower.includes("error") ||
+            statusLower.includes("failed") ||
+            statusLower.includes("timeout") ||
+            statusLower.includes("invalid")
+          ) {
+            lightingStatus = "error";
+          } else if (
+            statusLower.includes("authentication") ||
+            statusLower.includes("auth") ||
+            statusLower.includes("unauthorized") ||
+            statusLower.includes("token")
+          ) {
+            lightingStatus = "authentication_required";
+          }
+        }
+
         setStatus((prevStatus) => ({
-          ...prevStatus,
-          lightingStatus: wsStatus.status,
+          ...prevStatus!,
+          lightingStatus,
           lightingSystemType:
             wsStatus.systemType || prevStatus?.lightingSystemType || "unknown",
-          isReady: wsStatus.isReady,
-          hasLightingSystem: wsStatus.hasLightingSystem,
+          isReady: wsStatus.isReady || false,
+          hasLightingSystem: wsStatus.hasLightingSystem || false,
+          lightingSystemConfigured: wsStatus.hasLightingSystem || false,
           lastUpdated: new Date().toISOString(),
         }));
       }
@@ -148,7 +188,7 @@ const LightingSystemCard: React.FC<LightingSystemCardProps> = memo(
                   </IonLabel>
                 </IonItem>
 
-                {status.lightingHostAddress && (
+                {isDeveloperMode && status.lightingHostAddress && (
                   <IonItem lines="none">
                     <IonLabel>
                       <h3>Host Address</h3>
@@ -159,7 +199,7 @@ const LightingSystemCard: React.FC<LightingSystemCardProps> = memo(
                   </IonItem>
                 )}
 
-                {status.lightingLastTestAt && (
+                {isDeveloperMode && status.lightingLastTestAt && (
                   <IonItem lines="none">
                     <IonLabel>
                       <h3>Last Tested</h3>

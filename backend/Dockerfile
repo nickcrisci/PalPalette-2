@@ -1,6 +1,9 @@
 # Use official Node.js LTS image
 FROM node:lts-alpine
 
+# Install timezone data for Alpine Linux
+RUN apk add --no-cache tzdata
+
 # Set working directory
 WORKDIR /app
 

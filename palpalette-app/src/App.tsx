@@ -16,6 +16,7 @@ import { list, settings, camera, people, mailOutline } from "ionicons/icons";
 import Login from "./pages/Login"; // Keep Login as direct import for faster auth
 import { AuthProvider } from "./contexts/AuthContext";
 import { DeviceProvider } from "./contexts/DeviceContext";
+import { DeveloperModeProvider } from "./contexts/DeveloperModeContext";
 import { useAuth } from "./hooks/useContexts";
 
 // Lazy load page components
@@ -139,9 +140,11 @@ const App: React.FC = () => (
   <IonApp>
     <AuthProvider>
       <DeviceProvider>
-        <IonReactRouter>
-          <AppContent />
-        </IonReactRouter>
+        <DeveloperModeProvider>
+          <IonReactRouter>
+            <AppContent />
+          </IonReactRouter>
+        </DeveloperModeProvider>
       </DeviceProvider>
     </AuthProvider>
   </IonApp>

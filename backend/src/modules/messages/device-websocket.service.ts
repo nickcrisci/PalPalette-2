@@ -383,18 +383,56 @@ export class DeviceWebSocketService implements OnApplicationBootstrap {
         capabilities,
       } = data;
 
+      // Map lighting status to enum values
+      let mappedStatus = "unknown"; // default
+
+      if (status) {
+        const statusLower = status.toLowerCase();
+        if (
+          statusLower.includes("connected") ||
+          statusLower.includes("responding") ||
+          statusLower.includes("on") ||
+          statusLower === "working"
+        ) {
+          mappedStatus = "working";
+        } else if (
+          statusLower.includes("auth") &&
+          (statusLower.includes("no") || statusLower.includes("false"))
+        ) {
+          mappedStatus = "authentication_required";
+        } else if (
+          statusLower.includes("error") ||
+          statusLower.includes("failed") ||
+          statusLower.includes("disconnected") ||
+          statusLower.includes("not responding")
+        ) {
+          mappedStatus = "error";
+        } else if (statusLower === "unknown") {
+          mappedStatus = "unknown";
+        } else {
+          // If status contains any positive indicators, assume working
+          if (
+            statusLower.includes("ready") ||
+            statusLower.includes("yes") ||
+            statusLower.includes("success")
+          ) {
+            mappedStatus = "working";
+          } else {
+            mappedStatus = "error"; // default to error for unrecognized status
+          }
+        }
+      } else if (isReady !== undefined) {
+        mappedStatus = isReady ? "working" : "error";
+      }
+
       // Update lighting system status via HTTP API
       const updateData: any = {
         lightingSystemConfigured: hasLightingSystem || false,
         lightingSystemType: systemType || null,
-        lightingStatus: status || (isReady ? "ready" : "not_ready"),
-        lightingLastStatusUpdate: new Date(),
+        lightingStatus: mappedStatus,
       };
 
-      // Include capabilities if provided
-      if (capabilities) {
-        updateData.lightingCapabilities = capabilities;
-      }
+      // Note: lightingCapabilities is not part of UpdateLightingSystemDto, so we don't include it
 
       const response = await fetch(
         `http://localhost:3000/devices/${deviceId}/lighting`,
@@ -413,7 +451,7 @@ export class DeviceWebSocketService implements OnApplicationBootstrap {
         );
         this.logger.log(`🔧 System Type: ${systemType || "none"}`);
         this.logger.log(
-          `📊 Status: ${status || (isReady ? "ready" : "not_ready")}`
+          `📊 Raw Status: ${status || "none"}, Mapped: ${mappedStatus}`
         );
         this.logger.log(`🚦 Ready: ${isReady ? "Yes" : "No"}`);
 

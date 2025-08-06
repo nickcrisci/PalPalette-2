@@ -15,17 +15,21 @@ import {
   IonCardHeader,
   IonCardTitle,
   IonText,
+  IonToggle,
 } from "@ionic/react";
 import {
   person,
   logOut,
   informationCircle,
   colorPalette,
+  code,
 } from "ionicons/icons";
 import { useAuth } from "../hooks/useContexts";
+import { useDeveloperMode } from "../hooks/useDeveloperMode";
 
 const Settings: React.FC = () => {
   const { user, logout } = useAuth();
+  const { isDeveloperMode, toggleDeveloperMode } = useDeveloperMode();
 
   const handleLogout = () => {
     logout();
@@ -85,6 +89,32 @@ const Settings: React.FC = () => {
                 using QR codes and send beautiful colors wirelessly.
               </p>
             </IonText>
+          </IonCardContent>
+        </IonCard>
+
+        {/* Developer Mode */}
+        <IonCard>
+          <IonCardHeader>
+            <IonCardTitle>Developer</IonCardTitle>
+          </IonCardHeader>
+          <IonCardContent>
+            <IonList>
+              <IonItem>
+                <IonIcon icon={code} slot="start" />
+                <IonLabel>
+                  <h2>Developer Mode</h2>
+                  <p>
+                    Show technical details like MAC addresses and host
+                    information
+                  </p>
+                </IonLabel>
+                <IonToggle
+                  checked={isDeveloperMode}
+                  onIonChange={toggleDeveloperMode}
+                  slot="end"
+                />
+              </IonItem>
+            </IonList>
           </IonCardContent>
         </IonCard>
 

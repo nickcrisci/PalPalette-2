@@ -27,6 +27,7 @@ import {
 } from "@ionic/react";
 import { add, wifi, time, settings, bulb } from "ionicons/icons";
 import { Device } from "../services/api";
+import { useDeveloperMode } from "../hooks/useDeveloperMode";
 import {
   PairingCodeModal,
   DeviceSettingsModal,
@@ -53,6 +54,7 @@ const DeviceManagement: React.FC<DeviceManagementProps> = ({
 }) => {
   const deviceManagement = useDeviceManagement();
   const { userNotifications, deviceStatuses } = useWebSocket();
+  const { isDeveloperMode } = useDeveloperMode();
   const [viewMode, setViewMode] = useState<"devices" | "lighting">(
     defaultView === "both" ? "devices" : defaultView
   );
@@ -129,6 +131,11 @@ const DeviceManagement: React.FC<DeviceManagementProps> = ({
     const wsDeviceStatus = deviceStatuses.get(device.id);
     const isOnline = wsDeviceStatus?.isOnline ?? device.isOnline;
 
+    // Use WebSocket timestamp for last seen if available, otherwise use device's lastSeenAt
+    const lastSeenTime = wsDeviceStatus?.timestamp
+      ? new Date(wsDeviceStatus.timestamp).toISOString()
+      : device.lastSeenAt;
+
     return (
       <IonCard>
         <IonCardHeader>
@@ -177,7 +184,7 @@ const DeviceManagement: React.FC<DeviceManagementProps> = ({
               </IonLabel>
             </IonItem>
 
-            {device.macAddress && (
+            {isDeveloperMode && device.macAddress && (
               <IonItem lines="none">
                 <IonLabel>
                   <h3>MAC Address</h3>
@@ -203,7 +210,7 @@ const DeviceManagement: React.FC<DeviceManagementProps> = ({
               <IonIcon icon={time} slot="start" />
               <IonLabel>
                 <h3>Last Seen</h3>
-                <p>{formatLastSeen(device.lastSeenAt)}</p>
+                <p>{formatLastSeen(lastSeenTime)}</p>
               </IonLabel>
             </IonItem>
 

@@ -119,17 +119,19 @@ export class DevicesController {
     );
   }
 
-  @UseGuards(JwtAuthGuard)
+  @Public()
   @Patch(":id/lighting")
   async updateLightingSystem(
     @Param("id") deviceId: string,
     @Body() updates: UpdateLightingSystemDto,
     @Request() req
   ) {
-    // Verify device belongs to user
-    const device = await this.devicesService.findOne(deviceId);
-    if (device.user?.id !== req.user.userId) {
-      throw new Error("Unauthorized");
+    // If there's a user in the request, verify device belongs to user
+    if (req.user && req.user.userId) {
+      const device = await this.devicesService.findOne(deviceId);
+      if (device.user?.id !== req.user.userId) {
+        throw new Error("Unauthorized");
+      }
     }
 
     return this.lightingSystemsService.updateLightingSystem(deviceId, updates);
@@ -273,6 +275,7 @@ export class DevicesController {
     return this.devicesService.findOne(id);
   }
 
+  @Public()
   @Patch(":id")
   update(@Param("id") id: string, @Body() updateDeviceDto: UpdateDeviceDto) {
     return this.devicesService.update(id, updateDeviceDto);
