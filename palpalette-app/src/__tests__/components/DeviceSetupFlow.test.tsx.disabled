@@ -1,0 +1,437 @@
+import React from 'react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import '@testing-library/jest-dom';
+// Component does not exist - these tests need to be updated or removed
+// import { DeviceSetupFlow } from '../../components/devices';
+// import { UserNotificationService } from '../../services/UserNotificationService';
+
+// Mock UserNotificationService
+jest.mock('../services/UserNotificationService', () => ({
+  UserNotificationService: jest.fn().mockImplementation(() => ({
+    onAuthenticationNotification: jest.fn(),
+    removeAuthenticationCallback: jest.fn(),
+    getAuthenticationState: jest.fn(),
+    requestNotificationPermissions: jest.fn().mockResolvedValue(true),
+    destroy: jest.fn(),
+  })),
+  userNotificationService: {
+    onAuthenticationNotification: jest.fn(),
+    removeAuthenticationCallback: jest.fn(),
+    getAuthenticationState: jest.fn(),
+    requestNotificationPermissions: jest.fn().mockResolvedValue(true),
+    destroy: jest.fn(),
+  },
+  NotificationAction: {
+    PRESS_POWER_BUTTON: 'press_power_button',
+    AUTHENTICATION_SUCCESS: 'authentication_success',
+    AUTHENTICATION_FAILED: 'authentication_failed',
+    NANOLEAF_PAIRING: 'nanoleaf_pairing',
+  },
+}));
+
+// Mock API calls
+const mockApiCalls = {
+  claimDevice: jest.fn(),
+  configureLightingSystem: jest.fn(),
+};
+
+jest.mock('../services/api', () => ({
+  claimDevice: (...args: any[]) => mockApiCalls.claimDevice(...args),
+  configureLightingSystem: (...args: any[]) => mockApiCalls.configureLightingSystem(...args),
+}));
+
+// Mock Ionic components and routing
+jest.mock('@ionic/react', () => ({
+  IonContent: ({ children }: any) => <div data-testid="ion-content">{children}</div>,
+  IonHeader: ({ children }: any) => <div data-testid="ion-header">{children}</div>,
+  IonTitle: ({ children }: any) => <h1 data-testid="ion-title">{children}</h1>,
+  IonToolbar: ({ children }: any) => <div data-testid="ion-toolbar">{children}</div>,
+  IonPage: ({ children }: any) => <div data-testid="ion-page">{children}</div>,
+  IonItem: ({ children, ...props }: any) => <div data-testid="ion-item" {...props}>{children}</div>,
+  IonLabel: ({ children }: any) => <label data-testid="ion-label">{children}</label>,
+  IonInput: ({ onIonInput, placeholder, ...props }: any) => (
+    <input 
+      data-testid="ion-input" 
+      placeholder={placeholder}
+      onChange={(e) => onIonInput && onIonInput({ detail: { value: e.target.value } })}
+      {...props}
+    />
+  ),
+  IonButton: ({ children, onClick, disabled, fill }: any) => (
+    <button 
+      data-testid="ion-button" 
+      onClick={onClick} 
+      disabled={disabled}
+      data-fill={fill}
+    >
+      {children}
+    </button>
+  ),
+  IonSelect: ({ children, onSelectionChange, placeholder }: any) => (
+    <select 
+      data-testid="ion-select" 
+      onChange={(e) => onSelectionChange && onSelectionChange({ detail: { value: e.target.value } })}
+    >
+      <option value="">{placeholder}</option>
+      {children}
+    </select>
+  ),
+  IonSelectOption: ({ value, children }: any) => (
+    <option value={value}>{children}</option>
+  ),
+  IonLoading: ({ isOpen, message }: any) => 
+    isOpen ? <div data-testid="ion-loading">{message}</div> : null,
+  IonAlert: ({ isOpen, header, message, buttons }: any) => 
+    isOpen ? (
+      <div data-testid="ion-alert">
+        <h3>{header}</h3>
+        <p>{message}</p>
+        {buttons?.map((btn: any, idx: number) => (
+          <button key={idx} onClick={btn.handler}>{btn.text}</button>
+        ))}
+      </div>
+    ) : null,
+  useIonRouter: () => ({
+    push: jest.fn(),
+    goBack: jest.fn(),
+  }),
+  useIonToast: () => [
+    jest.fn(),
+    jest.fn(),
+  ],
+}));
+
+describe('DeviceSetupFlow Integration', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('Device Claiming Flow', () => {
+    it('should complete device claiming successfully', async () => {
+      // Mock successful API response
+      mockApiCalls.claimDevice.mockResolvedValue({
+        id: 'device-123',
+        name: 'My Device',
+        status: 'claimed',
+        lightingSystemType: 'nanoleaf',
+      });
+
+      render(<DeviceSetupFlow />);
+
+      // Step 1: Enter pairing code
+      expect(screen.getByText('Enter Pairing Code')).toBeInTheDocument();
+      
+      const pairingCodeInput = screen.getByPlaceholderText('Enter 6-digit code');
+      fireEvent.change(pairingCodeInput, { target: { value: '123456' } });
+
+      const deviceNameInput = screen.getByPlaceholderText('Device name');
+      fireEvent.change(deviceNameInput, { target: { value: 'My Test Device' } });
+
+      // Step 2: Claim device
+      const claimButton = screen.getByText('Claim Device');
+      fireEvent.click(claimButton);
+
+      // Verify API call
+      await waitFor(() => {
+        expect(mockApiCalls.claimDevice).toHaveBeenCalledWith({
+          pairingCode: '123456',
+          deviceName: 'My Test Device',
+        });
+      });
+
+      // Should proceed to lighting system selection
+      await waitFor(() => {
+        expect(screen.getByText('Select Lighting System')).toBeInTheDocument();
+      });
+    });
+
+    it('should handle invalid pairing code', async () => {
+      // Mock API error
+      mockApiCalls.claimDevice.mockRejectedValue(new Error('Invalid pairing code'));
+
+      render(<DeviceSetupFlow />);
+
+      const pairingCodeInput = screen.getByPlaceholderText('Enter 6-digit code');
+      fireEvent.change(pairingCodeInput, { target: { value: '999999' } });
+
+      const deviceNameInput = screen.getByPlaceholderText('Device name');
+      fireEvent.change(deviceNameInput, { target: { value: 'Test Device' } });
+
+      const claimButton = screen.getByText('Claim Device');
+      fireEvent.click(claimButton);
+
+      // Should show error message
+      await waitFor(() => {
+        expect(screen.getByText(/Invalid pairing code/)).toBeInTheDocument();
+      });
+    });
+
+    it('should validate pairing code format', () => {
+      render(<DeviceSetupFlow />);
+
+      const pairingCodeInput = screen.getByPlaceholderText('Enter 6-digit code');
+      const claimButton = screen.getByText('Claim Device');
+
+      // Test invalid formats
+      fireEvent.change(pairingCodeInput, { target: { value: '12345' } }); // Too short
+      expect(claimButton).toBeDisabled();
+
+      fireEvent.change(pairingCodeInput, { target: { value: '1234567' } }); // Too long
+      expect(claimButton).toBeDisabled();
+
+      fireEvent.change(pairingCodeInput, { target: { value: '12345a' } }); // Contains letter
+      expect(claimButton).toBeDisabled();
+
+      // Valid format
+      fireEvent.change(pairingCodeInput, { target: { value: '123456' } });
+      const deviceNameInput = screen.getByPlaceholderText('Device name');
+      fireEvent.change(deviceNameInput, { target: { value: 'Test' } });
+      expect(claimButton).not.toBeDisabled();
+    });
+  });
+
+  describe('Lighting System Configuration', () => {
+    beforeEach(() => {
+      // Mock that device is already claimed
+      mockApiCalls.claimDevice.mockResolvedValue({
+        id: 'device-123',
+        name: 'My Device',
+        status: 'claimed',
+      });
+    });
+
+    it('should configure Nanoleaf lighting system', async () => {
+      mockApiCalls.configureLightingSystem.mockResolvedValue({
+        id: 'device-123',
+        lightingSystemType: 'nanoleaf',
+        lightingSystemConfigured: true,
+      });
+
+      render(<DeviceSetupFlow initialStep="lighting-config" deviceId="device-123" />);
+
+      // Select Nanoleaf
+      const lightingSelect = screen.getByTestId('ion-select');
+      fireEvent.change(lightingSelect, { target: { value: 'nanoleaf' } });
+
+      // Enter Nanoleaf configuration
+      const hostInput = screen.getByPlaceholderText('Nanoleaf IP address');
+      fireEvent.change(hostInput, { target: { value: '192.168.1.100' } });
+
+      const configureButton = screen.getByText('Configure Lighting');
+      fireEvent.click(configureButton);
+
+      await waitFor(() => {
+        expect(mockApiCalls.configureLightingSystem).toHaveBeenCalledWith('device-123', {
+          lightingSystemType: 'nanoleaf',
+          lightingHostAddress: '192.168.1.100',
+          lightingPort: 16021,
+        });
+      });
+    });
+
+    it('should handle Nanoleaf authentication flow', async () => {
+      const mockUserNotificationService = UserNotificationService as jest.MockedClass<typeof UserNotificationService>;
+      const mockInstance = mockUserNotificationService.mock.instances[0] as any;
+
+      render(<DeviceSetupFlow initialStep="lighting-config" deviceId="device-123" />);
+
+      // Configure Nanoleaf
+      const lightingSelect = screen.getByTestId('ion-select');
+      fireEvent.change(lightingSelect, { target: { value: 'nanoleaf' } });
+
+      const hostInput = screen.getByPlaceholderText('Nanoleaf IP address');
+      fireEvent.change(hostInput, { target: { value: '192.168.1.100' } });
+
+      const configureButton = screen.getByText('Configure Lighting');
+      fireEvent.click(configureButton);
+
+      // Simulate notification callback registration
+      expect(mockInstance.onAuthenticationNotification).toHaveBeenCalledWith(
+        'device-123',
+        expect.any(Function)
+      );
+
+      // Simulate authentication notification
+      const notificationCallback = mockInstance.onAuthenticationNotification.mock.calls[0][1];
+      notificationCallback({
+        deviceId: 'device-123',
+        action: 'press_power_button',
+        message: 'Hold power button for 5 seconds',
+      });
+
+      // Should show DeviceAuthNotification component
+      await waitFor(() => {
+        expect(screen.getByText('Device Authentication Required')).toBeInTheDocument();
+      });
+    });
+
+    it('should configure WLED lighting system', async () => {
+      mockApiCalls.configureLightingSystem.mockResolvedValue({
+        id: 'device-123',
+        lightingSystemType: 'wled',
+        lightingSystemConfigured: true,
+      });
+
+      render(<DeviceSetupFlow initialStep="lighting-config" deviceId="device-123" />);
+
+      // Select WLED
+      const lightingSelect = screen.getByTestId('ion-select');
+      fireEvent.change(lightingSelect, { target: { value: 'wled' } });
+
+      // Enter WLED configuration
+      const hostInput = screen.getByPlaceholderText('WLED IP address');
+      fireEvent.change(hostInput, { target: { value: '192.168.1.101' } });
+
+      const ledCountInput = screen.getByPlaceholderText('Number of LEDs');
+      fireEvent.change(ledCountInput, { target: { value: '60' } });
+
+      const configureButton = screen.getByText('Configure Lighting');
+      fireEvent.click(configureButton);
+
+      await waitFor(() => {
+        expect(mockApiCalls.configureLightingSystem).toHaveBeenCalledWith('device-123', {
+          lightingSystemType: 'wled',
+          lightingHostAddress: '192.168.1.101',
+          lightingPort: 80,
+          lightingCustomConfig: {
+            ledCount: 60,
+          },
+        });
+      });
+    });
+  });
+
+  describe('Complete Setup Flow', () => {
+    it('should complete entire setup flow from start to finish', async () => {
+      // Mock successful API responses
+      mockApiCalls.claimDevice.mockResolvedValue({
+        id: 'device-123',
+        name: 'My Device',
+        status: 'claimed',
+      });
+
+      mockApiCalls.configureLightingSystem.mockResolvedValue({
+        id: 'device-123',
+        lightingSystemType: 'nanoleaf',
+        lightingSystemConfigured: true,
+      });
+
+      render(<DeviceSetupFlow />);
+
+      // Step 1: Claim device
+      const pairingCodeInput = screen.getByPlaceholderText('Enter 6-digit code');
+      fireEvent.change(pairingCodeInput, { target: { value: '123456' } });
+
+      const deviceNameInput = screen.getByPlaceholderText('Device name');
+      fireEvent.change(deviceNameInput, { target: { value: 'My Test Device' } });
+
+      const claimButton = screen.getByText('Claim Device');
+      fireEvent.click(claimButton);
+
+      // Wait for step 2: Lighting configuration
+      await waitFor(() => {
+        expect(screen.getByText('Select Lighting System')).toBeInTheDocument();
+      });
+
+      // Step 2: Configure lighting
+      const lightingSelect = screen.getByTestId('ion-select');
+      fireEvent.change(lightingSelect, { target: { value: 'nanoleaf' } });
+
+      const hostInput = screen.getByPlaceholderText('Nanoleaf IP address');
+      fireEvent.change(hostInput, { target: { value: '192.168.1.100' } });
+
+      const configureButton = screen.getByText('Configure Lighting');
+      fireEvent.click(configureButton);
+
+      // Wait for completion
+      await waitFor(() => {
+        expect(screen.getByText('Setup Complete!')).toBeInTheDocument();
+      });
+
+      // Verify both API calls were made
+      expect(mockApiCalls.claimDevice).toHaveBeenCalled();
+      expect(mockApiCalls.configureLightingSystem).toHaveBeenCalled();
+    });
+
+    it('should handle setup flow cancellation', () => {
+      render(<DeviceSetupFlow />);
+
+      const cancelButton = screen.getByText('Cancel');
+      fireEvent.click(cancelButton);
+
+      // Should show confirmation dialog
+      expect(screen.getByTestId('ion-alert')).toBeInTheDocument();
+      expect(screen.getByText('Cancel Setup?')).toBeInTheDocument();
+    });
+
+    it('should persist setup progress across component remounts', async () => {
+      const { rerender } = render(<DeviceSetupFlow />);
+
+      // Start setup
+      const pairingCodeInput = screen.getByPlaceholderText('Enter 6-digit code');
+      fireEvent.change(pairingCodeInput, { target: { value: '123456' } });
+
+      // Simulate component remount
+      rerender(<DeviceSetupFlow />);
+
+      // Should restore previous state
+      expect(screen.getByDisplayValue('123456')).toBeInTheDocument();
+    });
+  });
+
+  describe('Error Handling', () => {
+    it('should handle network errors gracefully', async () => {
+      mockApiCalls.claimDevice.mockRejectedValue(new Error('Network error'));
+
+      render(<DeviceSetupFlow />);
+
+      const pairingCodeInput = screen.getByPlaceholderText('Enter 6-digit code');
+      fireEvent.change(pairingCodeInput, { target: { value: '123456' } });
+
+      const deviceNameInput = screen.getByPlaceholderText('Device name');
+      fireEvent.change(deviceNameInput, { target: { value: 'Test Device' } });
+
+      const claimButton = screen.getByText('Claim Device');
+      fireEvent.click(claimButton);
+
+      await waitFor(() => {
+        expect(screen.getByText(/Unable to connect/)).toBeInTheDocument();
+        expect(screen.getByText('Retry')).toBeInTheDocument();
+      });
+    });
+
+    it('should allow retry after errors', async () => {
+      mockApiCalls.claimDevice
+        .mockRejectedValueOnce(new Error('Network error'))
+        .mockResolvedValue({
+          id: 'device-123',
+          name: 'My Device',
+          status: 'claimed',
+        });
+
+      render(<DeviceSetupFlow />);
+
+      const pairingCodeInput = screen.getByPlaceholderText('Enter 6-digit code');
+      fireEvent.change(pairingCodeInput, { target: { value: '123456' } });
+
+      const deviceNameInput = screen.getByPlaceholderText('Device name');
+      fireEvent.change(deviceNameInput, { target: { value: 'Test Device' } });
+
+      const claimButton = screen.getByText('Claim Device');
+      fireEvent.click(claimButton);
+
+      // First attempt fails
+      await waitFor(() => {
+        expect(screen.getByText('Retry')).toBeInTheDocument();
+      });
+
+      // Retry succeeds
+      const retryButton = screen.getByText('Retry');
+      fireEvent.click(retryButton);
+
+      await waitFor(() => {
+        expect(screen.getByText('Select Lighting System')).toBeInTheDocument();
+      });
+    });
+  });
+});

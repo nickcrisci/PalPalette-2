@@ -1,4 +1,5 @@
 import { Redirect, Route } from "react-router-dom";
+import { Suspense, lazy } from "react";
 import {
   IonApp,
   IonIcon,
@@ -7,20 +8,23 @@ import {
   IonTabBar,
   IonTabButton,
   IonTabs,
+  IonSpinner,
   setupIonicReact,
 } from "@ionic/react";
 import { IonReactRouter } from "@ionic/react-router";
 import { list, settings, camera, people, mailOutline } from "ionicons/icons";
-import Devices from "./pages/Devices";
-import ColorPalette from "./pages/ColorPalette";
-import PaletteCreator from "./pages/PaletteCreator";
-import Friends from "./pages/Friends";
-import Messages from "./pages/Messages";
-import Settings from "./pages/Settings";
-import Login from "./pages/Login";
+import Login from "./pages/Login"; // Keep Login as direct import for faster auth
 import { AuthProvider } from "./contexts/AuthContext";
 import { DeviceProvider } from "./contexts/DeviceContext";
 import { useAuth } from "./hooks/useContexts";
+
+// Lazy load page components
+const Devices = lazy(() => import("./pages/Devices"));
+const ColorPalette = lazy(() => import("./pages/ColorPalette"));
+const PaletteCreator = lazy(() => import("./pages/PaletteCreator"));
+const Friends = lazy(() => import("./pages/Friends"));
+const Messages = lazy(() => import("./pages/Messages"));
+const Settings = lazy(() => import("./pages/Settings"));
 
 /* Core CSS required for Ionic components to work properly */
 import "@ionic/react/css/core.css";
@@ -68,24 +72,39 @@ const AppContent: React.FC = () => {
   return (
     <IonTabs>
       <IonRouterOutlet>
-        <Route exact path="/devices">
-          <Devices />
-        </Route>
-        <Route exact path="/palette">
-          <ColorPalette />
-        </Route>
-        <Route exact path="/create">
-          <PaletteCreator />
-        </Route>
-        <Route exact path="/friends">
-          <Friends />
-        </Route>
-        <Route exact path="/messages">
-          <Messages />
-        </Route>
-        <Route path="/settings">
-          <Settings />
-        </Route>
+        <Suspense
+          fallback={
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                height: "100vh",
+              }}
+            >
+              <IonSpinner name="crescent" />
+            </div>
+          }
+        >
+          <Route exact path="/devices">
+            <Devices />
+          </Route>
+          <Route exact path="/palette">
+            <ColorPalette />
+          </Route>
+          <Route exact path="/create">
+            <PaletteCreator />
+          </Route>
+          <Route exact path="/friends">
+            <Friends />
+          </Route>
+          <Route exact path="/messages">
+            <Messages />
+          </Route>
+          <Route path="/settings">
+            <Settings />
+          </Route>
+        </Suspense>
         <Route exact path="/">
           <Redirect to="/devices" />
         </Route>

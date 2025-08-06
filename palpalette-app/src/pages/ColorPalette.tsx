@@ -62,7 +62,7 @@ const ColorPalette: React.FC = () => {
   };
 
   const onlineDevices = devices.filter(
-    (device) => device.isOnline && device.isSetupComplete
+    (device) => device.isOnline && device.isProvisioned
   );
 
   return (
@@ -92,7 +92,7 @@ const ColorPalette: React.FC = () => {
                 onIonChange={(e) => setSelectedDevice(e.detail.value)}
               >
                 {onlineDevices.map((device) => (
-                  <IonSelectOption key={device.id} value={device.deviceId}>
+                  <IonSelectOption key={device.id} value={device.id}>
                     {device.name}
                   </IonSelectOption>
                 ))}

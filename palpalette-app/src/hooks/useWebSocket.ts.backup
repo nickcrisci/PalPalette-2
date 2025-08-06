@@ -1,0 +1,151 @@
+import { useEffect, useState, useRef } from "react";
+import { WebSocketService } from "../services/WebSocketService";
+import {
+  UserNotification,
+  DeviceStatusEvent,
+  LightingSystemStatusEvent,
+} from "../services/api/types";
+import { API_CONFIG } from "../config/api";
+
+export interface UseWebSocketOptions {
+  autoConnect?: boolean;
+}
+
+export interface WebSocketHookReturn {
+  isConnected: boolean;
+  userNotifications: UserNotification[];
+  deviceStatuses: Map<string, DeviceStatusEvent>;
+  lightingStatuses: Map<string, LightingSystemStatusEvent>;
+  connect: () => void;
+  disconnect: () => void;
+  clearNotifications: () => void;
+  markNotificationRead: (index: number) => void;
+}
+
+export const useWebSocket = (
+  options: UseWebSocketOptions = {}
+): WebSocketHookReturn => {
+  const { autoConnect = true } = options;
+
+  const [isConnected, setIsConnected] = useState(false);
+  const [userNotifications, setUserNotifications] = useState<
+    UserNotification[]
+  >([]);
+  const [deviceStatuses, setDeviceStatuses] = useState<
+    Map<string, DeviceStatusEvent>
+  >(new Map());
+  const [lightingStatuses, setLightingStatuses] = useState<
+    Map<string, LightingSystemStatusEvent>
+  >(new Map());
+
+  const wsRef = useRef<WebSocketService | null>(null);
+
+  useEffect(() => {
+    if (!wsRef.current) {
+      // Use the WebSocket URL for device communication (port 3001)
+      wsRef.current = new WebSocketService(API_CONFIG.WEBSOCKET_URL);
+
+      // Set up event listeners
+      wsRef.current.on("connected", () => {
+        console.log("✅ WebSocket connected");
+        setIsConnected(true);
+      });
+
+      wsRef.current.on("disconnected", () => {
+        console.log("🔌 WebSocket disconnected");
+        setIsConnected(false);
+      });
+
+      wsRef.current.on("error", (error) => {
+        console.error("❌ WebSocket error:", error);
+        setIsConnected(false);
+      });
+
+      wsRef.current.on(
+        "userActionRequired",
+        (notification: UserNotification) => {
+          console.log("🔔 New user notification:", notification);
+          setUserNotifications((prev) => [notification, ...prev]);
+
+          // Auto-remove notification after timeout if specified
+          if (notification.timeout && notification.timeout > 0) {
+            setTimeout(() => {
+              setUserNotifications((prev) =>
+                prev.filter((n) => n.timestamp !== notification.timestamp)
+              );
+            }, notification.timeout * 1000);
+          }
+        }
+      );
+
+      wsRef.current.on("deviceStatus", (status: DeviceStatusEvent) => {
+        console.log("📱 Device status update:", status);
+        setDeviceStatuses((prev) => {
+          const updated = new Map(prev);
+          updated.set(status.deviceId, status);
+          return updated;
+        });
+      });
+
+      wsRef.current.on(
+        "lightingSystemStatus",
+        (status: LightingSystemStatusEvent) => {
+          console.log("💡 Lighting status update:", status);
+          setLightingStatuses((prev) => {
+            const updated = new Map(prev);
+            updated.set(status.deviceId, status);
+            return updated;
+          });
+        }
+      );
+    }
+
+    if (autoConnect && wsRef.current) {
+      wsRef.current.connect();
+    }
+
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.disconnect();
+        wsRef.current.removeAllListeners();
+      }
+    };
+  }, [autoConnect]);
+
+  const connect = () => {
+    if (wsRef.current) {
+      wsRef.current.connect();
+    }
+  };
+
+  const disconnect = () => {
+    if (wsRef.current) {
+      wsRef.current.disconnect();
+    }
+  };
+
+  const clearNotifications = () => {
+    setUserNotifications([]);
+  };
+
+  const markNotificationRead = (index: number) => {
+    setUserNotifications((prev) => {
+      const updated = [...prev];
+      if (updated[index]) {
+        updated[index] = { ...updated[index], isRead: true };
+      }
+      return updated;
+    });
+  };
+
+  return {
+    isConnected,
+    userNotifications,
+    deviceStatuses,
+    lightingStatuses,
+    connect,
+    disconnect,
+    clearNotifications,
+    markNotificationRead,
+  };
+};

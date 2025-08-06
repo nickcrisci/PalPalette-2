@@ -16,8 +16,8 @@ import {
   IonRefresherContent,
 } from "@ionic/react";
 import { add, refresh } from "ionicons/icons";
-import LightingSystemCard from "../components/LightingSystemCard";
-import LightingConfigSimple from "../components/LightingConfigSimple";
+import { LightingSystemCard } from "../components/lighting";
+import { LightingConfigSimple } from "../components/lighting";
 
 interface Device {
   id: string;
@@ -83,7 +83,8 @@ const LightingSystemsPage: React.FC<LightingSystemsPageProps> = ({
               <IonCardTitle>No Devices Found</IonCardTitle>
             </IonCardHeader>
             <IonCardContent>
-              Add friends and their devices to start configuring lighting systems.
+              Add friends and their devices to start configuring lighting
+              systems.
             </IonCardContent>
           </IonCard>
         ) : (

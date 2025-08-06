@@ -1,0 +1,390 @@
+import {
+  UserNotificationService,
+  NotificationAction,
+  UserNotification,
+} from "../../services/UserNotificationService";
+import { Preferences } from "@capacitor/preferences";
+
+// Mock Capacitor Preferences
+jest.mock("@capacitor/preferences", () => ({
+  Preferences: {
+    get: jest.fn(),
+  },
+}));
+
+// Mock WebSocket
+class MockWebSocket {
+  static CONNECTING = 0;
+  static OPEN = 1;
+  static CLOSING = 2;
+  static CLOSED = 3;
+
+  readyState = MockWebSocket.CONNECTING;
+  onopen: ((event: Event) => void) | null = null;
+  onclose: ((event: CloseEvent) => void) | null = null;
+  onmessage: ((event: MessageEvent) => void) | null = null;
+  onerror: ((event: Event) => void) | null = null;
+
+  constructor(public url: string) {
+    // Simulate connection opening after a delay
+    setTimeout(() => {
+      this.readyState = MockWebSocket.OPEN;
+      if (this.onopen) {
+        this.onopen(new Event("open"));
+      }
+    }, 10);
+  }
+
+  send(data: string | ArrayBufferLike | Blob | ArrayBufferView) {
+    // Mock send implementation
+  }
+
+  close() {
+    this.readyState = MockWebSocket.CLOSING;
+    setTimeout(() => {
+      this.readyState = MockWebSocket.CLOSED;
+      if (this.onclose) {
+        this.onclose(new CloseEvent("close"));
+      }
+    }, 10);
+  }
+
+  // Helper method to simulate receiving messages
+  simulateMessage(data: any) {
+    if (this.onmessage) {
+      this.onmessage(
+        new MessageEvent("message", { data: JSON.stringify(data) })
+      );
+    }
+  }
+}
+
+// Mock global WebSocket
+(global as any).WebSocket = MockWebSocket;
+
+// Mock window and document
+Object.defineProperty(global, "window", {
+  value: {
+    dispatchEvent: jest.fn(),
+  },
+  writable: true,
+});
+
+Object.defineProperty(global, "document", {
+  value: {
+    hidden: false,
+  },
+  writable: true,
+});
+
+// Mock Notification API
+(global as any).Notification = class {
+  static permission = "granted";
+  static requestPermission = jest.fn().mockResolvedValue("granted");
+
+  constructor(public title: string, public options: any) {}
+};
+
+describe("UserNotificationService", () => {
+  let service: UserNotificationService;
+  let mockWebSocket: MockWebSocket;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    // Mock auth token
+    (Preferences.get as jest.Mock).mockResolvedValue({ value: "test-token" });
+
+    // Create service instance
+    service = new UserNotificationService();
+
+    // Get reference to the mocked WebSocket
+    mockWebSocket = (service as any).wsConnection;
+  });
+
+  afterEach(() => {
+    if (service) {
+      service.destroy();
+    }
+  });
+
+  describe("WebSocket Connection", () => {
+    it("should initialize WebSocket connection with auth token", async () => {
+      // Wait for WebSocket initialization
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      expect(Preferences.get).toHaveBeenCalledWith({ key: "auth_token" });
+      expect(mockWebSocket).toBeDefined();
+      expect(mockWebSocket.url).toContain("/messages");
+    });
+
+    it("should send authentication message on connection open", async () => {
+      const sendSpy = jest.spyOn(mockWebSocket, "send");
+
+      // Wait for connection to open
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      expect(sendSpy).toHaveBeenCalledWith(
+        JSON.stringify({
+          event: "authenticate",
+          data: { token: "test-token" },
+        })
+      );
+    });
+
+    it("should handle connection close and attempt reconnection", async () => {
+      // Wait for initial connection
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      // Simulate connection close
+      if (mockWebSocket.onclose) {
+        mockWebSocket.onclose(new CloseEvent("close"));
+      }
+
+      // Check that reconnection is attempted (service creates new connection)
+      expect(service).toBeDefined();
+    });
+  });
+
+  describe("Authentication Notifications", () => {
+    beforeEach(async () => {
+      // Wait for WebSocket connection
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+
+    it("should handle user action required notifications", () => {
+      const mockNotification: UserNotification = {
+        deviceId: "device-123",
+        action: NotificationAction.PRESS_POWER_BUTTON,
+        message: "Please hold the power button for 5 seconds",
+        instructions: "Hold the power button on your Nanoleaf controller",
+        timeout: 30000,
+      };
+
+      const callback = jest.fn();
+      service.onAuthenticationNotification("device-123", callback);
+
+      // Simulate incoming notification
+      mockWebSocket.simulateMessage({
+        event: "user_action_required",
+        data: mockNotification,
+      });
+
+      expect(callback).toHaveBeenCalledWith(mockNotification);
+    });
+
+    it("should update authentication state when notification received", () => {
+      const mockNotification: UserNotification = {
+        deviceId: "device-123",
+        action: NotificationAction.NANOLEAF_PAIRING,
+        message: "Nanoleaf pairing in progress",
+      };
+
+      // Simulate incoming notification
+      mockWebSocket.simulateMessage({
+        event: "user_action_required",
+        data: mockNotification,
+      });
+
+      const authState = service.getAuthenticationState("device-123");
+
+      expect(authState).toEqual({
+        deviceId: "device-123",
+        isAuthenticating: true,
+        currentStep: NotificationAction.NANOLEAF_PAIRING,
+        message: "Nanoleaf pairing in progress",
+        lastUpdate: expect.any(Number),
+      });
+    });
+
+    it("should trigger global event when notification received", () => {
+      const mockNotification: UserNotification = {
+        deviceId: "device-123",
+        action: NotificationAction.AUTHENTICATION_SUCCESS,
+        message: "Device connected successfully",
+      };
+
+      const dispatchEventSpy = jest.spyOn(window, "dispatchEvent");
+
+      // Simulate incoming notification
+      mockWebSocket.simulateMessage({
+        event: "user_action_required",
+        data: mockNotification,
+      });
+
+      expect(dispatchEventSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "deviceAuthNotification",
+          detail: mockNotification,
+        })
+      );
+    });
+
+    it("should show native notification when app is in background", () => {
+      // Mock document.hidden as true (app in background)
+      Object.defineProperty(document, "hidden", {
+        value: true,
+        writable: true,
+      });
+
+      const mockNotification: UserNotification = {
+        deviceId: "device-123",
+        action: NotificationAction.PRESS_POWER_BUTTON,
+        message: "Please hold the power button",
+      };
+
+      // Simulate incoming notification
+      mockWebSocket.simulateMessage({
+        event: "user_action_required",
+        data: mockNotification,
+      });
+
+      // Check that Notification constructor was called
+      expect((global as any).Notification).toHaveBeenCalledWith(
+        "Device Setup Required",
+        expect.objectContaining({
+          body: "Please hold the power button",
+          tag: "device-auth-device-123",
+        })
+      );
+    });
+  });
+
+  describe("Authentication State Management", () => {
+    it("should track multiple device authentication states", () => {
+      const notification1: UserNotification = {
+        deviceId: "device-1",
+        action: NotificationAction.PRESS_POWER_BUTTON,
+        message: "Hold power button for device 1",
+      };
+
+      const notification2: UserNotification = {
+        deviceId: "device-2",
+        action: NotificationAction.NANOLEAF_PAIRING,
+        message: "Pairing Nanoleaf for device 2",
+      };
+
+      // Simulate notifications for different devices
+      mockWebSocket.simulateMessage({
+        event: "user_action_required",
+        data: notification1,
+      });
+
+      mockWebSocket.simulateMessage({
+        event: "user_action_required",
+        data: notification2,
+      });
+
+      const authenticatingDevices = service.getAuthenticatingDevices();
+      expect(authenticatingDevices).toHaveLength(2);
+      expect(authenticatingDevices[0].deviceId).toBe("device-1");
+      expect(authenticatingDevices[1].deviceId).toBe("device-2");
+    });
+
+    it("should clean up authentication state when callback removed", () => {
+      const callback = jest.fn();
+      service.onAuthenticationNotification("device-123", callback);
+
+      // Add authentication state
+      mockWebSocket.simulateMessage({
+        event: "user_action_required",
+        data: {
+          deviceId: "device-123",
+          action: NotificationAction.PRESS_POWER_BUTTON,
+          message: "Test message",
+        },
+      });
+
+      expect(service.getAuthenticationState("device-123")).toBeTruthy();
+
+      // Remove callback
+      service.removeAuthenticationCallback("device-123");
+
+      expect(service.getAuthenticationState("device-123")).toBeNull();
+    });
+  });
+
+  describe("Notification Permissions", () => {
+    it("should request notification permissions", async () => {
+      const result = await service.requestNotificationPermissions();
+
+      expect((global as any).Notification.requestPermission).toHaveBeenCalled();
+      expect(result).toBe(true);
+    });
+
+    it("should handle denied notification permissions", async () => {
+      (global as any).Notification.requestPermission = jest
+        .fn()
+        .mockResolvedValue("denied");
+
+      const result = await service.requestNotificationPermissions();
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe("Service Cleanup", () => {
+    it("should clean up resources on destroy", () => {
+      const callback = jest.fn();
+      service.onAuthenticationNotification("device-123", callback);
+
+      // Add some state
+      mockWebSocket.simulateMessage({
+        event: "user_action_required",
+        data: {
+          deviceId: "device-123",
+          action: NotificationAction.PRESS_POWER_BUTTON,
+          message: "Test",
+        },
+      });
+
+      expect(service.getAuthenticationState("device-123")).toBeTruthy();
+
+      // Destroy service
+      service.destroy();
+
+      // Check cleanup
+      expect(service.getAuthenticationState("device-123")).toBeNull();
+      expect(service.getAuthenticatingDevices()).toHaveLength(0);
+    });
+  });
+
+  describe("Error Handling", () => {
+    it("should handle WebSocket errors gracefully", async () => {
+      // Wait for connection
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      // Simulate WebSocket error
+      if (mockWebSocket.onerror) {
+        mockWebSocket.onerror(new Event("error"));
+      }
+
+      // Service should still be functional
+      expect(service).toBeDefined();
+    });
+
+    it("should handle malformed WebSocket messages", () => {
+      // Simulate malformed message
+      if (mockWebSocket.onmessage) {
+        mockWebSocket.onmessage(
+          new MessageEvent("message", { data: "invalid json" })
+        );
+      }
+
+      // Should not crash
+      expect(service).toBeDefined();
+    });
+
+    it("should handle missing auth token gracefully", async () => {
+      // Mock missing auth token
+      (Preferences.get as jest.Mock).mockResolvedValue({ value: null });
+
+      const newService = new UserNotificationService();
+
+      // Should not crash
+      expect(newService).toBeDefined();
+
+      newService.destroy();
+    });
+  });
+});

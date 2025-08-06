@@ -1,5 +1,5 @@
 import React, { createContext, useState, ReactNode, useCallback } from "react";
-import { DevicesService, Device } from "../services/DevicesService";
+import { devicesAPI, Device } from "../services/api";
 import { useAuth } from "../hooks/useContexts";
 
 export interface DeviceContextType {
@@ -33,7 +33,7 @@ export const DeviceProvider: React.FC<DeviceProviderProps> = ({ children }) => {
 
     try {
       setLoading(true);
-      const devicesData = await DevicesService.getMyDevices();
+      const devicesData = await devicesAPI.getDevices();
       setDevices(devicesData);
     } catch (error) {
       console.error("Failed to refresh devices:", error);
@@ -48,7 +48,7 @@ export const DeviceProvider: React.FC<DeviceProviderProps> = ({ children }) => {
 
       try {
         setLoading(true);
-        await DevicesService.claimDeviceByCode(pairingCode, name);
+        await devicesAPI.claimDevice({ pairingCode, deviceName: name });
         // Refresh devices list after successful claim
         await refreshDevices();
         return true;
@@ -68,7 +68,7 @@ export const DeviceProvider: React.FC<DeviceProviderProps> = ({ children }) => {
 
       try {
         setLoading(true);
-        await DevicesService.resetDevice(deviceId);
+        await devicesAPI.resetDevice(deviceId);
         // Refresh devices list after successful reset
         await refreshDevices();
         return true;
@@ -88,26 +88,15 @@ export const DeviceProvider: React.FC<DeviceProviderProps> = ({ children }) => {
     setupSecret: string,
     name: string
   ): Promise<boolean> => {
-    if (!token) return false;
-
-    try {
-      setLoading(true);
-      await DevicesService.claimDevice(deviceId, name);
-      // Refresh devices list after successful claim
-      await refreshDevices();
-      return true;
-    } catch (error) {
-      console.error("Failed to claim device (legacy):", error);
-      return false;
-    } finally {
-      setLoading(false);
-    }
+    console.warn("claimDevice is deprecated, use claimDeviceByCode instead");
+    // For backward compatibility, try to use setupSecret as pairingCode
+    return claimDeviceByCode(setupSecret, name);
   };
 
   const sendColorToDevice = (deviceId: string, color: string) => {
-    // For now, we'll use HTTP API for sending colors
-    // Later we can implement WebSocket functionality
-    console.log(`Sending color ${color} to device ${deviceId}`);
+    devicesAPI.sendColorToDevice(deviceId, color).catch((error) => {
+      console.error("Failed to send color to device:", error);
+    });
   };
 
   const value: DeviceContextType = {

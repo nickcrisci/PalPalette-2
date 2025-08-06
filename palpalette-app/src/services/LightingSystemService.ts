@@ -2,8 +2,10 @@ import axios from "axios";
 import { getApiUrl } from "../config/api";
 import { Preferences } from "@capacitor/preferences";
 
+export type LightingSystemType = "nanoleaf" | "wled" | "ws2812";
+
 export interface LightingSystemConfig {
-  lightingSystemType: "nanoleaf" | "wled" | "ws2812";
+  lightingSystemType: LightingSystemType;
   lightingHostAddress?: string;
   lightingPort?: number;
   lightingAuthToken?: string;
@@ -81,7 +83,9 @@ export class LightingSystemService {
    */
   static async getSupportedSystems(): Promise<SupportedSystemsResponse> {
     try {
-      const response = await axios.get(getApiUrl("/devices/lighting/supported-systems"));
+      const response = await axios.get(
+        getApiUrl("/devices/lighting/supported-systems")
+      );
       return response.data;
     } catch (error) {
       console.error("Error fetching supported systems:", error);
@@ -92,9 +96,13 @@ export class LightingSystemService {
   /**
    * Get default configuration for a lighting system type
    */
-  static async getDefaultConfig(systemType: string): Promise<Record<string, unknown>> {
+  static async getDefaultConfig(
+    systemType: string
+  ): Promise<Record<string, unknown>> {
     try {
-      const response = await axios.get(getApiUrl(`/devices/lighting/${systemType}/default-config`));
+      const response = await axios.get(
+        getApiUrl(`/devices/lighting/${systemType}/default-config`)
+      );
       return response.data;
     } catch (error) {
       console.error("Error fetching default config:", error);
@@ -147,7 +155,9 @@ export class LightingSystemService {
   /**
    * Get lighting system status for a device
    */
-  static async getLightingSystemStatus(deviceId: string): Promise<LightingSystemStatus> {
+  static async getLightingSystemStatus(
+    deviceId: string
+  ): Promise<LightingSystemStatus> {
     try {
       const headers = await this.getAuthHeader();
       const response = await axios.get(

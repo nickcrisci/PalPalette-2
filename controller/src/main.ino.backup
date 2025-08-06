@@ -1,0 +1,384 @@
+/*
+ * PalPalette Edge Device - ESP32/ESP8266 WebSocket Client (Testing Version)
+ * Connects to the NestJS backend and receives color palette commands
+ *
+ * This version outputs messages to Serial for testing without LED hardware
+ *
+ * Hardware Requirements:
+ * - ESP32 or ESP8266
+ * - WiFi connection
+ *
+ * Libraries Required:
+ * - ArduinoWebsockets by Gil Maimon
+ * - ArduinoJson by Benoit Blanchon
+ *
+ * Setup Instructions:
+ * 1. Update WiFi credentials below
+ * 2. Find your computer's IP address:
+ *    - Windows: Open Command Prompt, run: ipconfig
+ *    - Look for "IPv4 Address" (e.g., 192.168.1.100)
+ * 3. Update BACKEND_IP below with your computer's IP
+ * 4. Make sure backend is running with: npm run start:dev
+ */
+
+#include <WiFi.h>
+#include <ArduinoWebsockets.h>
+#include <ArduinoJson.h>
+
+// *** UPDATE THESE VALUES ***
+const char *ssid = "Tapferer kleiner Router";  // Your WiFi network name
+const char *password = "54804164016273929857"; // Your WiFi password
+const char *BACKEND_IP = "192.168.178.23";     // *** CHANGE THIS TO YOUR COMPUTER'S IP ***
+
+// Device configuration
+const char *device_id = "863c16d2-e307-4c51-8867-47da4c656f60"; // Unique device ID from database
+const char *device_token = "test-token-123";                    // Test authentication token
+
+// Device setup state
+bool isSetupComplete = false;
+String setupToken = "";
+String userOwner = "";
+
+// WebSocket configuration - Port 3001 for raw WebSocket (ESP32 devices)
+// String websocket_server = "ws://" + String(BACKEND_IP) + ":3001/ws";
+
+String websocket_server = "ws://192.168.178.23:3001/ws"; // ✅ Correct
+using namespace websockets;
+WebsocketsClient client;
+
+// Current color palette for testing
+struct ColorPalette
+{
+    String messageId;
+    String senderId;
+    String senderName;
+    String colors[10]; // Store as hex strings for serial output
+    int colorCount;
+    unsigned long timestamp;
+};
+
+ColorPalette currentPalette;
+unsigned long lastHeartbeat = 0;
+const unsigned long HEARTBEAT_INTERVAL = 30000; // 30 seconds
+
+void setup()
+{
+    Serial.begin(115200);
+    delay(1000);
+
+    Serial.println("\n=== PalPalette Edge Device (Testing Mode) ===");
+    Serial.println("Version: Test build without LED hardware");
+    Serial.println("Protocol: Raw WebSocket (Port 3001)");
+    Serial.println("==========================================\n");
+
+    // Connect to WiFi
+    Serial.println("Connecting to WiFi: " + String(ssid));
+    WiFi.begin(ssid, password);
+
+    int attempts = 0;
+    while (WiFi.status() != WL_CONNECTED && attempts < 30)
+    {
+        delay(1000);
+        Serial.print(".");
+        attempts++;
+    }
+
+    if (WiFi.status() == WL_CONNECTED)
+    {
+        Serial.println("\n✓ WiFi Connected!");
+        Serial.println("IP Address: " + WiFi.localIP().toString());
+        Serial.println("Backend Server: " + websocket_server);
+        Serial.println();
+    }
+    else
+    {
+        Serial.println("\n✗ WiFi Connection Failed!");
+        Serial.println("Please check your WiFi credentials and try again.");
+        return;
+    }
+
+    // Connect to WebSocket
+    connectWebSocket();
+}
+
+void loop()
+{
+    // Keep WebSocket connection alive
+    if (client.available())
+    {
+        client.poll();
+    }
+    else
+    {
+        Serial.println("⚠ WebSocket disconnected, attempting reconnection...");
+        connectWebSocket();
+        delay(5000); // Wait before retry
+    }
+
+    // Send periodic heartbeat
+    if (millis() - lastHeartbeat > HEARTBEAT_INTERVAL)
+    {
+        sendHeartbeat();
+        lastHeartbeat = millis();
+    }
+
+    delay(100);
+}
+
+void connectWebSocket()
+{
+    Serial.println("🔌 Connecting to WebSocket server: " + websocket_server);
+
+    // Set WebSocket callbacks
+    client.onMessage(onMessageCallback);
+    client.onEvent(onEventsCallback);
+
+    // Connect to server
+    bool connected = client.connect(websocket_server);
+    if (connected)
+    {
+        Serial.println("✓ Connected to WebSocket server");
+        registerDevice();
+    }
+    else
+    {
+        Serial.println("✗ Failed to connect to WebSocket server");
+        Serial.println("  Check that:");
+        Serial.println("  1. Backend is running (npm run start:dev)");
+        Serial.println("  2. Backend IP address is correct: " + String(BACKEND_IP));
+        Serial.println("  3. Port 3001 is not blocked by firewall (Raw WebSocket port)");
+    }
+}
+
+void registerDevice()
+{
+    Serial.println("📋 Registering device with server...");
+
+    // Send device registration message
+    StaticJsonDocument<200> doc;
+    doc["event"] = "registerDevice";
+    doc["data"]["deviceId"] = device_id;
+    doc["data"]["token"] = device_token;
+
+    String message;
+    serializeJson(doc, message);
+    client.send(message);
+
+    Serial.println("Device ID: " + String(device_id));
+    Serial.println("Registration message sent");
+}
+
+void sendHeartbeat()
+{
+    if (client.available())
+    {
+        client.ping();
+        Serial.println("💓 Heartbeat sent");
+    }
+}
+
+void handleColorPalette(StaticJsonDocument<1024> &doc)
+{
+    Serial.println("\n🎨 ===== COLOR PALETTE RECEIVED =====");
+
+    // Extract palette data
+    currentPalette.messageId = doc["messageId"].as<String>();
+    currentPalette.senderId = doc["senderId"].as<String>();
+    currentPalette.senderName = doc["senderName"].as<String>();
+    currentPalette.timestamp = doc["timestamp"];
+
+    // Extract colors
+    JsonArray colors = doc["colors"];
+    currentPalette.colorCount = min((int)colors.size(), 10);
+
+    Serial.println("Message ID: " + currentPalette.messageId);
+    Serial.println("From: " + currentPalette.senderName + " (" + currentPalette.senderId + ")");
+    Serial.println("Timestamp: " + String(currentPalette.timestamp));
+    Serial.println("Number of colors: " + String(currentPalette.colorCount));
+    Serial.println();
+
+    Serial.println("🌈 Color Palette:");
+    Serial.println("+---------+----------+");
+    Serial.println("| Color # | Hex Code |");
+    Serial.println("+---------+----------+");
+
+    for (int i = 0; i < currentPalette.colorCount; i++)
+    {
+        String hexColor = colors[i]["hex"];
+        currentPalette.colors[i] = hexColor;
+
+        // Format output nicely
+        String colorNum = String(i + 1);
+        if (colorNum.length() == 1)
+            colorNum = " " + colorNum;
+
+        Serial.println("|    " + colorNum + "    |  " + hexColor + "  |");
+    }
+
+    Serial.println("+---------+----------+");
+    Serial.println();
+
+    // Simulate LED display
+    displayColorPaletteSerial();
+
+    Serial.println("🎨 =====================================\n");
+}
+
+void handleDeviceClaimed(StaticJsonDocument<1024> &doc)
+{
+    Serial.println("\n🔐 ===== DEVICE CLAIMED =====");
+
+    setupToken = doc["data"]["setupToken"].as<String>();
+    userOwner = doc["data"]["userEmail"].as<String>();
+
+    Serial.println("✅ Device has been claimed by user: " + userOwner);
+    Serial.println("🔑 Setup token received: " + setupToken);
+    Serial.println("📞 Completing setup with backend...");
+
+    // Complete setup with the backend
+    completeDeviceSetup();
+
+    Serial.println("🔐 ==============================\n");
+}
+
+void handleSetupComplete(StaticJsonDocument<1024> &doc)
+{
+    Serial.println("\n🎉 ===== SETUP COMPLETED =====");
+
+    isSetupComplete = true;
+    String status = doc["data"]["status"].as<String>();
+
+    Serial.println("✅ Device setup completed successfully!");
+    Serial.println("👤 Owner: " + userOwner);
+    Serial.println("📱 Device is now ready to receive color palettes!");
+    Serial.println("🔗 Status: " + status);
+
+    Serial.println("🎉 ==============================\n");
+}
+
+void onMessageCallback(WebsocketsMessage message)
+{
+    Serial.println("\n📨 Received WebSocket message:");
+    Serial.println("Raw data: " + message.data());
+
+    // Parse JSON message
+    StaticJsonDocument<1024> doc;
+    DeserializationError error = deserializeJson(doc, message.data());
+
+    if (error)
+    {
+        Serial.println("❌ JSON parsing failed: " + String(error.c_str()));
+        return;
+    }
+
+    // Check message type
+    if (doc.containsKey("event"))
+    {
+        String event = doc["event"];
+        Serial.println("Event type: " + event);
+
+        if (event == "colorPalette")
+        {
+            handleColorPalette(doc);
+        }
+        else if (event == "deviceRegistered")
+        {
+            Serial.println("✅ Device successfully registered with server!");
+        }
+        else if (event == "deviceClaimed")
+        {
+            handleDeviceClaimed(doc);
+        }
+        else if (event == "setupComplete")
+        {
+            handleSetupComplete(doc);
+        }
+    }
+    else
+    {
+        Serial.println("⚠ Unknown message format");
+    }
+}
+
+void displayColorPaletteSerial()
+{
+    Serial.println("💡 [LED SIMULATION] Displaying colors on light strip:");
+
+    // Create a visual representation using ASCII
+    Serial.print("   Strip: ");
+    for (int i = 0; i < currentPalette.colorCount; i++)
+    {
+        Serial.print("[" + currentPalette.colors[i] + "]");
+        if (i < currentPalette.colorCount - 1)
+        {
+            Serial.print("-");
+        }
+    }
+    Serial.println();
+
+    // Show RGB values
+    Serial.println("   RGB Values:");
+    for (int i = 0; i < currentPalette.colorCount; i++)
+    {
+        String hexColor = currentPalette.colors[i];
+        if (hexColor.startsWith("#"))
+        {
+            hexColor = hexColor.substring(1);
+        }
+
+        // Convert hex to RGB
+        long rgb = strtol(hexColor.c_str(), NULL, 16);
+        uint8_t r = (rgb >> 16) & 0xFF;
+        uint8_t g = (rgb >> 8) & 0xFF;
+        uint8_t b = rgb & 0xFF;
+
+        Serial.println("   Color " + String(i + 1) + ": RGB(" + String(r) + ", " + String(g) + ", " + String(b) + ")");
+    }
+
+    Serial.println("   💡 Colors displayed for 30 seconds");
+}
+
+void completeDeviceSetup()
+{
+    // Get device network information
+    String ipAddress = WiFi.localIP().toString();
+    String macAddress = WiFi.macAddress();
+
+    // Create HTTP client for setup completion
+    Serial.println("📡 Sending setup completion to backend...");
+    Serial.println("🌐 Device IP: " + ipAddress);
+    Serial.println("🔧 MAC Address: " + macAddress);
+
+    // For now, send via WebSocket (could be changed to HTTP POST later)
+    StaticJsonDocument<300> doc;
+    doc["event"] = "completeSetup";
+    doc["data"]["deviceId"] = device_id;
+    doc["data"]["setupToken"] = setupToken;
+    doc["data"]["ipAddress"] = ipAddress;
+    doc["data"]["macAddress"] = macAddress;
+
+    String message;
+    serializeJson(doc, message);
+    client.send(message);
+
+    Serial.println("📤 Setup completion message sent");
+}
+
+void onEventsCallback(WebsocketsEvent event, String data)
+{
+    switch (event)
+    {
+    case WebsocketsEvent::ConnectionOpened:
+        Serial.println("🔗 WebSocket Connection Opened");
+        break;
+    case WebsocketsEvent::ConnectionClosed:
+        Serial.println("🔌 WebSocket Connection Closed");
+        break;
+    case WebsocketsEvent::GotPing:
+        Serial.println("🏓 Ping received from server");
+        break;
+    case WebsocketsEvent::GotPong:
+        Serial.println("🏓 Pong received from server");
+        break;
+    }
+}

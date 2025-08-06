@@ -1,6 +1,7 @@
 // API Configuration
 export const API_CONFIG = {
   BASE_URL: "http://localhost:3000", // Backend URL
+  WEBSOCKET_URL: "http://localhost:3001", // WebSocket server for device communication
   ENDPOINTS: {
     AUTH: {
       LOGIN: "/auth/login",

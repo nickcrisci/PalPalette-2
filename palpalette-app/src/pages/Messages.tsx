@@ -25,7 +25,7 @@ import {
 } from "@ionic/react";
 import { colorPalette, play, time, person, tvOutline } from "ionicons/icons";
 import { MessagesService, ColorMessage } from "../services/MessagesService";
-import { DevicesService, Device } from "../services/DevicesService";
+import { Device, devicesAPI } from "../services/api";
 import "./Messages.css";
 
 const Messages: React.FC = () => {
@@ -42,7 +42,7 @@ const Messages: React.FC = () => {
         setLoading(true);
         const [messagesData, devicesData] = await Promise.all([
           MessagesService.getReceivedMessages(),
-          DevicesService.getMyDevices(),
+          devicesAPI.getDevices(),
         ]);
 
         setMessages(messagesData);
@@ -68,7 +68,7 @@ const Messages: React.FC = () => {
       setLoading(true);
       const [messagesData, devicesData] = await Promise.all([
         MessagesService.getReceivedMessages(),
-        DevicesService.getMyDevices(),
+        devicesAPI.getDevices(),
       ]);
 
       setMessages(messagesData);

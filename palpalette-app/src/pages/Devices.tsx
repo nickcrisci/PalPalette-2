@@ -1,13 +1,6 @@
 import React, { useEffect, useState } from "react";
-import   const handleDeviceSettings = (device: Device) => {
-    setSelectedDevice(device);
-    setShowSettingsModal(true);
-  };
-
-  const handleLightingConfig = (device: Device) => {
-    setSelectedDevice(device);
-    setShowLightingModal(true);
-  };onContent,
+import {
+  IonContent,
   IonHeader,
   IonPage,
   IonTitle,
@@ -35,21 +28,31 @@ import   const handleDeviceSettings = (device: Device) => {
 } from "@ionic/react";
 import { add, wifi, time, settings, bulb } from "ionicons/icons";
 import { useDevices } from "../hooks/useContexts";
-import { Device } from "../services/DevicesService";
-import PairingCodeModal from "../components/PairingCodeModal";
-import DeviceSettingsModal from "../components/DeviceSettingsModal";
-import SetupWizardModal from "../components/SetupWizardModal";
-import LightingSystemCard from "../components/LightingSystemCard";
-import LightingConfigSimple from "../components/LightingConfigSimple";
+import { Device } from "../services/api";
+import {
+  PairingCodeModal,
+  DeviceSettingsModal,
+  SetupWizardModal,
+} from "../components/devices";
+import {
+  LightingSystemCard,
+  LightingConfigSimple,
+} from "../components/lighting";
+import { DeviceAuthNotification } from "../components/notifications";
+import { useDeviceNotifications } from "../hooks/useDeviceNotifications";
 
 const Devices: React.FC = () => {
   const { devices, loading, refreshDevices, resetDevice } = useDevices();
+  const { authenticatingDevices } = useDeviceNotifications();
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [showPairingModal, setShowPairingModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showSetupWizard, setShowSetupWizard] = useState(false);
   const [showLightingModal, setShowLightingModal] = useState(false);
+  const [showAuthNotification, setShowAuthNotification] = useState(false);
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
+  const [authNotificationDevice, setAuthNotificationDevice] =
+    useState<Device | null>(null);
 
   useEffect(() => {
     refreshDevices();
@@ -70,10 +73,32 @@ const Devices: React.FC = () => {
     setShowSettingsModal(true);
   };
 
+  const handleLightingConfig = (device: Device) => {
+    setSelectedDevice(device);
+    setShowLightingModal(true);
+  };
+
   const handleDeviceReset = async (deviceId: string) => {
     await resetDevice(deviceId);
     setShowSettingsModal(false);
     setSelectedDevice(null);
+  };
+
+  const handleStartLightingAuth = (device: Device) => {
+    setAuthNotificationDevice(device);
+    setShowAuthNotification(true);
+    // Close any other modals
+    setShowLightingModal(false);
+    setSelectedDevice(null);
+  };
+
+  const handleAuthSuccess = () => {
+    refreshDevices(); // Refresh to get updated lighting status
+  };
+
+  const handleAuthFailed = () => {
+    // Could show an error message or retry options
+    console.log("Lighting authentication failed");
   };
 
   const formatLastSeen = (lastSeenAt?: string) => {
@@ -112,13 +137,24 @@ const Devices: React.FC = () => {
                 <IonLabel>{device.isOnline ? "Online" : "Offline"}</IonLabel>
               </IonChip>
             </div>
-            <IonButton
-              fill="clear"
-              size="small"
-              onClick={() => handleDeviceSettings(device)}
-            >
-              <IonIcon icon={settings} />
-            </IonButton>
+            <div style={{ display: "flex", gap: "8px" }}>
+              {device.isProvisioned && (
+                <IonButton
+                  fill="clear"
+                  size="small"
+                  onClick={() => handleLightingConfig(device)}
+                >
+                  <IonIcon icon={bulb} />
+                </IonButton>
+              )}
+              <IonButton
+                fill="clear"
+                size="small"
+                onClick={() => handleDeviceSettings(device)}
+              >
+                <IonIcon icon={settings} />
+              </IonButton>
+            </div>
           </div>
         </IonCardTitle>
       </IonCardHeader>
@@ -159,6 +195,16 @@ const Devices: React.FC = () => {
             </IonLabel>
           </IonItem>
         </IonList>
+
+        {/* Add lighting system card for configured devices */}
+        {device.isProvisioned && (
+          <div style={{ marginTop: "16px" }}>
+            <LightingSystemCard
+              deviceId={device.id}
+              onConfigureClick={() => handleLightingConfig(device)}
+            />
+          </div>
+        )}
       </IonCardContent>
     </IonCard>
   );
@@ -252,6 +298,35 @@ const Devices: React.FC = () => {
             setShowPairingModal(true);
           }}
         />
+
+        {selectedDevice && (
+          <LightingConfigSimple
+            isOpen={showLightingModal}
+            deviceId={selectedDevice.id}
+            deviceName={selectedDevice.name}
+            onClose={() => {
+              setShowLightingModal(false);
+              setSelectedDevice(null);
+            }}
+            onConfigured={() => {
+              refreshDevices(); // Refresh to get updated lighting status
+            }}
+          />
+        )}
+
+        {authNotificationDevice && (
+          <DeviceAuthNotification
+            deviceId={authNotificationDevice.id}
+            deviceName={authNotificationDevice.name}
+            isVisible={showAuthNotification}
+            onDismiss={() => {
+              setShowAuthNotification(false);
+              setAuthNotificationDevice(null);
+            }}
+            onSuccess={handleAuthSuccess}
+            onFailed={handleAuthFailed}
+          />
+        )}
       </IonContent>
     </IonPage>
   );

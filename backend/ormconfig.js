@@ -8,5 +8,9 @@ module.exports = {
     password: process.env.DB_PASSWORD,
     database: process.env.DB_DATABASE,
     entities: [__dirname + '/src/**/*.entity{.ts,.js}'],
-    synchronize: true, // Set to false in production
-}; 
+    migrations: [__dirname + '/src/migrations/*{.ts,.js}'],
+    cli: {
+        migrationsDir: 'src/migrations'
+    },
+    synchronize: true, // Auto-sync schema for development
+};

@@ -19,8 +19,8 @@ import {
   IonLabel,
 } from "@ionic/react";
 import { send, camera, shuffle } from "ionicons/icons";
-import { PhotoPicker } from "../components/PhotoPicker";
-import { FriendSelector } from "../components/FriendSelector";
+import { PhotoPicker } from "../components/common";
+import { FriendSelector } from "../components/common";
 import {
   ColorPalette,
   ExtractedColor,
