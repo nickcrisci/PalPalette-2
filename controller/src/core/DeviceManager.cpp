@@ -158,21 +158,23 @@ bool DeviceManager::registerWithServer(const String &serverUrl)
 
     // Include lighting configuration if available
     Preferences lightingPrefs;
-    lightingPrefs.begin(DEVICE_PREF_NAMESPACE, true);
-    String lightingSystem = lightingPrefs.getString("lighting_system", "");
+    lightingPrefs.begin("light_config", true); // Use same namespace as LightManager
+    String lightingSystem = lightingPrefs.getString("system_type", "");
 
-    Serial.println("🔍 DEBUG: Checking device preferences for lighting config...");
-    Serial.println("  - lighting_system: '" + lightingSystem + "'");
+    Serial.println("🔍 DEBUG: Checking lighting preferences...");
+    Serial.println("  - system_type: '" + lightingSystem + "'");
 
     if (lightingSystem.length() > 0)
     {
         doc["lightingSystemType"] = lightingSystem;
 
-        String lightingHost = lightingPrefs.getString("lighting_host", "");
-        int lightingPort = lightingPrefs.getInt("lighting_port", 0);
+        String lightingHost = lightingPrefs.getString("host_addr", "");
+        int lightingPort = lightingPrefs.getInt("port", 0);
+        String authToken = lightingPrefs.getString("auth_token", "");
 
-        Serial.println("  - lighting_host: '" + lightingHost + "'");
-        Serial.println("  - lighting_port: " + String(lightingPort));
+        Serial.println("  - host_addr: '" + lightingHost + "'");
+        Serial.println("  - port: " + String(lightingPort));
+        Serial.println("  - auth_token: " + (authToken.length() > 0 ? authToken.substring(0, 8) + "..." : "None"));
 
         if (lightingHost.length() > 0)
         {
@@ -182,6 +184,11 @@ bool DeviceManager::registerWithServer(const String &serverUrl)
         if (lightingPort > 0)
         {
             doc["lightingPort"] = lightingPort;
+        }
+
+        if (authToken.length() > 0)
+        {
+            doc["lightingAuthToken"] = authToken;
         }
 
         Serial.println("📡 Including lighting configuration in registration:");
@@ -224,15 +231,33 @@ bool DeviceManager::registerWithServer(const String &serverUrl)
         JsonDocument responseDoc;
         if (deserializeJson(responseDoc, response) == DeserializationError::Ok)
         {
-            if (responseDoc["id"].is<String>())
+            if (responseDoc["device"]["id"].is<String>())
             {
-                deviceInfo.deviceId = responseDoc["id"].as<String>();
+                deviceInfo.deviceId = responseDoc["device"]["id"].as<String>();
                 Serial.println("🆔 Server assigned Device ID: " + deviceInfo.deviceId);
             }
-            if (responseDoc["pairingCode"].is<String>())
+            if (responseDoc["device"]["pairingCode"].is<String>())
             {
-                deviceInfo.pairingCode = responseDoc["pairingCode"].as<String>();
+                deviceInfo.pairingCode = responseDoc["device"]["pairingCode"].as<String>();
                 Serial.println("🔑 Server assigned Pairing Code: " + deviceInfo.pairingCode);
+            }
+
+            // Check if device is already claimed/provisioned
+            if (responseDoc["device"]["status"].is<String>())
+            {
+                String deviceStatus = responseDoc["device"]["status"].as<String>();
+                Serial.println("📊 Device Status: " + deviceStatus);
+
+                if (deviceStatus == "claimed")
+                {
+                    deviceInfo.isProvisioned = true;
+                    Serial.println("✅ Device is already claimed - marking as provisioned");
+                }
+                else
+                {
+                    deviceInfo.isProvisioned = false;
+                    Serial.println("📝 Device is not yet claimed - waiting for user pairing");
+                }
             }
         }
 

@@ -74,11 +74,18 @@ void setup()
     wifiManager.begin();
     deviceManager.begin();
 
-    // Initialize lighting system (but don't auto-configure)
+    // Initialize lighting system
     Serial.println("💡 Preparing lighting system...");
-    // Note: Lighting system will be configured via the mobile app after device pairing
-    lightManager.beginWithoutConfig();
-    Serial.println("✅ Lighting system ready for configuration via app");
+
+    // Try to load existing configuration first
+    if (lightManager.begin())
+    {
+        Serial.println("✅ Lighting system initialized with saved configuration");
+    }
+    else
+    {
+        Serial.println("✅ Lighting system ready for configuration via app");
+    }
 
     // Print device information
     DeviceInfo deviceInfo = deviceManager.getDeviceInfo();
@@ -239,11 +246,10 @@ void handleWiFiConnecting()
 
     if (wifiManager.connectToWiFi())
     {
-        Serial.println("✅ WiFi connected successfully!");
-        Serial.println("📍 IP Address: " + wifiManager.getLocalIP());
+        // WiFiManager already prints connection success message
 
         // Retry lighting system initialization now that WiFi is connected
-        Serial.println("🔄 WiFi connected - retrying lighting system initialization...");
+        Serial.println("🔄 Retrying lighting system initialization...");
         if (lightManager.retryInitialization())
         {
             Serial.println("✅ Lighting system initialized after WiFi connection");
@@ -295,12 +301,15 @@ void handleDeviceRegistration()
             {
                 Serial.println("✅ WebSocket connection established");
 
+                // Check provisioning status after registration response
                 if (deviceManager.isProvisioned())
                 {
+                    Serial.println("🎉 Device is already claimed - transitioning to operational mode");
                     setState(STATE_OPERATIONAL);
                 }
                 else
                 {
+                    Serial.println("📝 Device is not yet claimed - waiting for user pairing");
                     setState(STATE_WAITING_FOR_CLAIM);
                 }
             }
