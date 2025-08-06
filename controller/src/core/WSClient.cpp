@@ -186,8 +186,7 @@ bool WSClient::shouldRetryConnection()
 
 void WSClient::onMessageCallback(WebsocketsMessage message)
 {
-    Serial.println("\n📨 Received WebSocket message:");
-    Serial.println("Raw data: " + message.data());
+    Serial.println("📨 WebSocket message received");
 
     // Parse JSON message
     JsonDocument doc;
@@ -203,7 +202,7 @@ void WSClient::onMessageCallback(WebsocketsMessage message)
     if (doc["event"].is<String>())
     {
         String event = doc["event"];
-        Serial.println("📝 Event type: " + event);
+        Serial.println("📝 Event: " + event);
 
         if (event == "colorPalette")
         {

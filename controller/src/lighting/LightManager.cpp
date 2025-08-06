@@ -23,26 +23,10 @@ bool LightManager::begin()
 {
     Serial.println("🌈 Initializing Light Manager...");
 
-    // Debug: Check if preferences namespace exists
-    preferences.begin(PREF_NAMESPACE, true);
-    Serial.println("🔍 DEBUG: Checking lighting preferences...");
-    String storedSystemType = preferences.getString(PREF_SYSTEM_TYPE, "");
-    String storedHostAddress = preferences.getString(PREF_HOST_ADDRESS, "");
-    int storedPort = preferences.getInt(PREF_PORT, 0);
-    String storedAuthToken = preferences.getString(PREF_AUTH_TOKEN, "");
-
-    Serial.println("📋 Found in preferences:");
-    Serial.println("  - System Type: '" + storedSystemType + "'");
-    Serial.println("  - Host Address: '" + storedHostAddress + "'");
-    Serial.println("  - Port: " + String(storedPort));
-    Serial.println("  - Auth Token: " + (storedAuthToken.length() > 0 ? storedAuthToken.substring(0, 8) + "..." : "None"));
-    preferences.end();
-
     // Load configuration from EEPROM
     if (loadConfiguration())
     {
-        Serial.println("📋 Loaded lighting configuration from memory");
-        Serial.println("🎯 System Type: " + config.systemType);
+        Serial.println("📋 Loaded lighting configuration: " + config.systemType);
 
         // Create and initialize controller (but don't authenticate yet)
         if (createController(config.systemType))

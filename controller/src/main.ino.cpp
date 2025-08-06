@@ -1,18 +1,7 @@
-/*
- * PalPalette ESP32 Controller - Modular Self-Setup Version
- * Firmware Version: 2.0.0
- *
- * This is a complete refactor of the original monolithic ESP32 firmware
- * to support self-setup capability for open-source distribution.
- *
- * Key Features:
- * - WiFi captive portal for initial setup
- * - Automatic device registration with backend
- * - Self-generated device IDs and pairing codes
- * - Modular architecture for maintainability
- * - Full integration with new backend API
- */
-
+# 1 "C:\\Users\\NICKCR~1\\AppData\\Local\\Temp\\tmpbsokd94_"
+#include <Arduino.h>
+# 1 "E:/Desktop/VREUNDE/PalPalette-2/controller/src/main.ino"
+# 16 "E:/Desktop/VREUNDE/PalPalette-2/controller/src/main.ino"
 #include <Arduino.h>
 #include "config.h"
 #include "core/WiFiManager.h"
@@ -20,13 +9,13 @@
 #include "core/WSClient.h"
 #include "lighting/LightManager.h"
 
-// Global objects
+
 WiFiManager wifiManager;
 DeviceManager deviceManager;
 LightManager lightManager;
 WSClient *wsClient = nullptr;
 
-// State management
+
 enum DeviceState
 {
     STATE_INIT,
@@ -41,12 +30,26 @@ enum DeviceState
 DeviceState currentState = STATE_INIT;
 unsigned long stateChangeTime = 0;
 
-// Timing variables
+
 unsigned long lastStatusUpdate = 0;
 unsigned long lastWiFiCheck = 0;
-const unsigned long WIFI_CHECK_INTERVAL = 10000; // 10 seconds
-
-// Helper function for repeating strings
+const unsigned long WIFI_CHECK_INTERVAL = 10000;
+String repeatString(const String &str, int count);
+void setup();
+void loop();
+void setState(DeviceState newState);
+String getStateName(DeviceState state);
+void handleStateMachine();
+void handleWiFiSetup();
+void handleWiFiConnecting();
+void handleDeviceRegistration();
+void handleWaitingForClaim();
+void handleOperational();
+void handleError();
+void handlePeriodicTasks();
+void printSystemStatus();
+void serialEvent();
+#line 50 "E:/Desktop/VREUNDE/PalPalette-2/controller/src/main.ino"
 String repeatString(const String &str, int count)
 {
     String result = "";
@@ -68,16 +71,16 @@ void setup()
     Serial.println("🏗 Architecture: Modular Self-Setup");
     Serial.println(repeatString("=", 50));
 
-    // Initialize managers
+
     Serial.println("\n🔧 Initializing system components...");
 
     wifiManager.begin();
     deviceManager.begin();
 
-    // Initialize lighting system (WiFi-independent setup only)
+
     Serial.println("💡 Preparing lighting system...");
 
-    // Only load configuration, don't attempt network connections yet
+
     if (lightManager.beginWithoutConfig())
     {
         Serial.println("✅ Lighting system ready - network initialization will occur after WiFi connection");
@@ -85,7 +88,7 @@ void setup()
     else
     {
         Serial.println("❌ Lighting system initialization failed");
-    } // Print device information
+    }
     DeviceInfo deviceInfo = deviceManager.getDeviceInfo();
     Serial.println("\n📱 Device Information:");
     Serial.println("🆔 Device ID: " + deviceInfo.deviceId);
@@ -103,7 +106,7 @@ void setup()
         Serial.println("📱 Use this code in the mobile app to claim this device");
     }
 
-    // Start state machine
+
     setState(STATE_WIFI_SETUP);
 
     Serial.println("\n🚀 System initialization complete!");
@@ -112,7 +115,7 @@ void setup()
 
 void loop()
 {
-    // Update all managers
+
     wifiManager.loop();
     lightManager.loop();
     if (wsClient)
@@ -120,16 +123,16 @@ void loop()
         wsClient->loop();
     }
 
-    // Handle state machine
+
     handleStateMachine();
 
-    // Periodic tasks
+
     handlePeriodicTasks();
 
-    // Reset watchdog timer to prevent crashes
+
     yield();
 
-    // Small delay to prevent watchdog issues and reduce memory pressure
+
     delay(100);
 }
 
@@ -173,7 +176,7 @@ void handleStateMachine()
     switch (currentState)
     {
     case STATE_INIT:
-        // Should not reach here as we start with WIFI_SETUP
+
         setState(STATE_WIFI_SETUP);
         break;
 
@@ -205,7 +208,7 @@ void handleStateMachine()
 
 void handleWiFiSetup()
 {
-    // Check if we have stored WiFi credentials
+
     if (wifiManager.hasStoredCredentials())
     {
         Serial.println("📶 Found stored WiFi credentials, attempting connection...");
@@ -213,7 +216,7 @@ void handleWiFiSetup()
     }
     else
     {
-        // Start captive portal if not already running
+
         if (!wifiManager.isInAPMode())
         {
             Serial.println("📶 No WiFi credentials found, starting setup mode...");
@@ -244,9 +247,9 @@ void handleWiFiConnecting()
 
     if (wifiManager.connectToWiFi())
     {
-        // WiFiManager already prints connection success message
 
-        // Now that WiFi is connected, initialize lighting system with saved configuration
+
+
         Serial.println("🔄 WiFi connected - initializing lighting system with saved configuration...");
         if (lightManager.begin())
         {
@@ -262,7 +265,7 @@ void handleWiFiConnecting()
     }
     else
     {
-        // Check for timeout
+
         if (millis() - connectStartTime > WIFI_CONNECT_TIMEOUT)
         {
             Serial.println("⏰ WiFi connection timeout, returning to setup mode");
@@ -280,13 +283,13 @@ void handleDeviceRegistration()
     {
         Serial.println("📡 Starting device registration process...");
 
-        // First register with HTTP API
+
         String serverUrl = wifiManager.getServerURL();
         if (deviceManager.registerWithServer(serverUrl))
         {
             Serial.println("✅ Device registered with HTTP API");
 
-            // Initialize WebSocket client
+
             if (wsClient)
             {
                 delete wsClient;
@@ -294,12 +297,12 @@ void handleDeviceRegistration()
             wsClient = new WSClient(&deviceManager, &lightManager);
             wsClient->begin(serverUrl);
 
-            // Attempt WebSocket connection
+
             if (wsClient->connect())
             {
                 Serial.println("✅ WebSocket connection established");
 
-                // Check provisioning status after registration response
+
                 if (deviceManager.isProvisioned())
                 {
                     Serial.println("🎉 Device is already claimed - transitioning to operational mode");
@@ -324,7 +327,7 @@ void handleDeviceRegistration()
         registrationAttempted = true;
     }
 
-    // Reset registration attempt flag after delay
+
     if (millis() - stateChangeTime > REGISTRATION_RETRY_INTERVAL)
     {
         registrationAttempted = false;
@@ -333,9 +336,9 @@ void handleDeviceRegistration()
 
 void handleWaitingForClaim()
 {
-    // Display pairing information periodically
+
     static unsigned long lastPairingInfo = 0;
-    const unsigned long PAIRING_INFO_INTERVAL = 60000; // Reduced to 1 minute to reduce serial output
+    const unsigned long PAIRING_INFO_INTERVAL = 60000;
 
     if (millis() - lastPairingInfo > PAIRING_INFO_INTERVAL)
     {
@@ -350,7 +353,7 @@ void handleWaitingForClaim()
         lastPairingInfo = millis();
     }
 
-    // Check if device was claimed (this will be handled by WebSocket message)
+
     if (deviceManager.isProvisioned())
     {
         Serial.println("🎉 Device has been claimed! Transitioning to operational mode.");
@@ -360,9 +363,9 @@ void handleWaitingForClaim()
 
 void handleOperational()
 {
-    // Device is fully operational
+
     static unsigned long lastOperationalInfo = 0;
-    const unsigned long OPERATIONAL_INFO_INTERVAL = 60000; // 1 minute
+    const unsigned long OPERATIONAL_INFO_INTERVAL = 60000;
 
     if (millis() - lastOperationalInfo > OPERATIONAL_INFO_INTERVAL)
     {
@@ -370,7 +373,7 @@ void handleOperational()
         lastOperationalInfo = millis();
     }
 
-    // Check if device lost provisioning (shouldn't happen normally)
+
     if (!deviceManager.isProvisioned())
     {
         Serial.println("⚠ Device lost provisioning, returning to waiting state");
@@ -381,21 +384,21 @@ void handleOperational()
 void handleError()
 {
     static unsigned long lastErrorReport = 0;
-    const unsigned long ERROR_REPORT_INTERVAL = 10000; // 10 seconds
+    const unsigned long ERROR_REPORT_INTERVAL = 10000;
 
     if (millis() - lastErrorReport > ERROR_REPORT_INTERVAL)
     {
         Serial.println("❌ Device in error state - attempting recovery...");
         lastErrorReport = millis();
 
-        // Try to recover by going back to WiFi setup
+
         setState(STATE_WIFI_SETUP);
     }
 }
 
 void handlePeriodicTasks()
 {
-    // Check WiFi connection periodically
+
     if (millis() - lastWiFiCheck > WIFI_CHECK_INTERVAL)
     {
         if (currentState >= STATE_DEVICE_REGISTRATION && !wifiManager.isConnected())
@@ -406,7 +409,7 @@ void handlePeriodicTasks()
         lastWiFiCheck = millis();
     }
 
-    // Update device status periodically (if registered and connected)
+
     if (currentState >= STATE_DEVICE_REGISTRATION && deviceManager.shouldUpdateStatus())
     {
         if (wifiManager.isConnected())
@@ -420,9 +423,9 @@ void handlePeriodicTasks()
     }
 }
 
-/*
- * Utility Functions
- */
+
+
+
 
 void printSystemStatus()
 {
@@ -430,7 +433,7 @@ void printSystemStatus()
     Serial.println("📊 SYSTEM STATUS REPORT");
     Serial.println(repeatString("=", 40));
 
-    // Device info
+
     DeviceInfo deviceInfo = deviceManager.getDeviceInfo();
     Serial.println("🆔 Device ID: " + deviceInfo.deviceId);
     Serial.println("📡 MAC Address: " + deviceInfo.macAddress);
@@ -442,12 +445,12 @@ void printSystemStatus()
         Serial.println("🔑 Pairing Code: " + deviceInfo.pairingCode);
     }
 
-    // Network info
+
     Serial.println("📶 WiFi SSID: " + wifiManager.getSSID());
     Serial.println("📍 IP Address: " + wifiManager.getLocalIP());
     Serial.println("🔗 WiFi Connected: " + String(wifiManager.isConnected() ? "Yes" : "No"));
 
-    // WebSocket info
+
     if (wsClient)
     {
         Serial.println("🔌 WebSocket: " + String(wsClient->isClientConnected() ? "Connected" : "Disconnected"));
@@ -457,7 +460,7 @@ void printSystemStatus()
         Serial.println("🔌 WebSocket: Not initialized");
     }
 
-    // System info
+
     Serial.println("🧠 Free Heap: " + String(ESP.getFreeHeap()) + " bytes");
     Serial.println("⏰ Uptime: " + String(millis() / 1000) + " seconds");
     Serial.println("🔄 Current State: " + getStateName(currentState));
@@ -465,9 +468,9 @@ void printSystemStatus()
     Serial.println(repeatString("=", 40) + "\n");
 }
 
-/*
- * Serial Command Interface (for debugging)
- */
+
+
+
 void serialEvent()
 {
     if (Serial.available())
@@ -503,7 +506,7 @@ void serialEvent()
             Serial.println("🗂 Preferences Debug:");
             Preferences debugPrefs;
 
-            // Check palpalette namespace (main device preferences)
+
             debugPrefs.begin("palpalette", true);
             Serial.println("📋 Namespace: 'palpalette'");
             Serial.println("  lighting_system: '" + debugPrefs.getString("lighting_system", "") + "'");
@@ -512,7 +515,7 @@ void serialEvent()
             Serial.println("  wifi_ssid: '" + debugPrefs.getString("wifi_ssid", "") + "'");
             debugPrefs.end();
 
-            // Check light_config namespace (legacy lighting preferences)
+
             debugPrefs.begin("light_config", true);
             Serial.println("📋 Namespace: 'light_config'");
             Serial.println("  system_type: '" + debugPrefs.getString("system_type", "") + "'");

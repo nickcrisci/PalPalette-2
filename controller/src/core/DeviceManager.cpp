@@ -161,9 +161,6 @@ bool DeviceManager::registerWithServer(const String &serverUrl)
     lightingPrefs.begin("light_config", true); // Use same namespace as LightManager
     String lightingSystem = lightingPrefs.getString("system_type", "");
 
-    Serial.println("🔍 DEBUG: Checking lighting preferences...");
-    Serial.println("  - system_type: '" + lightingSystem + "'");
-
     if (lightingSystem.length() > 0)
     {
         doc["lightingSystemType"] = lightingSystem;
@@ -171,10 +168,6 @@ bool DeviceManager::registerWithServer(const String &serverUrl)
         String lightingHost = lightingPrefs.getString("host_addr", "");
         int lightingPort = lightingPrefs.getInt("port", 0);
         String authToken = lightingPrefs.getString("auth_token", "");
-
-        Serial.println("  - host_addr: '" + lightingHost + "'");
-        Serial.println("  - port: " + String(lightingPort));
-        Serial.println("  - auth_token: " + (authToken.length() > 0 ? authToken.substring(0, 8) + "..." : "None"));
 
         if (lightingHost.length() > 0)
         {
@@ -197,10 +190,6 @@ bool DeviceManager::registerWithServer(const String &serverUrl)
         {
             Serial.println("🌐 Host: " + lightingHost + (lightingPort > 0 ? ":" + String(lightingPort) : ""));
         }
-    }
-    else
-    {
-        Serial.println("⚠ No lighting configuration found in device preferences");
     }
     lightingPrefs.end();
 
