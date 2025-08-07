@@ -54,21 +54,16 @@ export class LightingSystemsService {
 
     const savedDevice = await this.deviceRepository.save(device);
 
-    // Convert database device ID to ESP32 WebSocket device ID format
-    const esp32DeviceId = this.convertToEsp32DeviceId(savedDevice.macAddress);
-
     // Send configuration to device via WebSocket if connected
     const configSent = this.webSocketService.sendLightingSystemConfig(
-      esp32DeviceId,
+      deviceId,
       savedDevice
     );
     if (configSent) {
-      console.log(
-        `🌈 Lighting configuration sent to device ${esp32DeviceId} (${deviceId})`
-      );
+      console.log(`🌈 Lighting configuration sent to device ${deviceId}`);
     } else {
       console.log(
-        `⚠ Device ${esp32DeviceId} (${deviceId}) not connected, configuration saved for next connection`
+        `⚠ Device ${deviceId} not connected, configuration saved for next connection`
       );
     }
 
@@ -246,24 +241,17 @@ export class LightingSystemsService {
       throw new NotFoundException("Device not found");
     }
 
-    // Convert database device ID to ESP32 WebSocket device ID format
-    const esp32DeviceId = this.convertToEsp32DeviceId(device.macAddress);
-
     // Request lighting system test via WebSocket
     const deviceConnected =
-      this.webSocketService.requestLightingSystemTest(esp32DeviceId);
+      this.webSocketService.requestLightingSystemTest(deviceId);
 
     if (deviceConnected) {
       // Update test timestamp
       device.lightingLastTestAt = new Date();
       await this.deviceRepository.save(device);
-      console.log(
-        `🧪 Lighting test requested for device ${esp32DeviceId} (${deviceId})`
-      );
+      console.log(`🧪 Lighting test requested for device ${deviceId}`);
     } else {
-      console.log(
-        `⚠ Device ${esp32DeviceId} (${deviceId}) not connected for lighting test`
-      );
+      console.log(`⚠ Device ${deviceId} not connected for lighting test`);
     }
 
     return {
@@ -349,13 +337,5 @@ export class LightingSystemsService {
           `Unsupported lighting system type: ${config.lightingSystemType}`
         );
     }
-  }
-
-  /**
-   * Convert MAC address to ESP32 device ID format for WebSocket communication
-   * e.g., "B0:81:84:05:FF:98" -> "esp32-b0818405ff98"
-   */
-  private convertToEsp32DeviceId(macAddress: string): string {
-    return "esp32-" + macAddress.replace(/:/g, "").toLowerCase();
   }
 }

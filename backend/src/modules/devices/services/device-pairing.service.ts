@@ -78,16 +78,8 @@ export class DevicePairingService {
       userName: user.displayName || user.email,
     };
 
-    // Convert MAC address to ESP32 device ID format (e.g., "B0:81:84:05:FF:98" -> "esp32-b0818405ff98")
-    const esp32DeviceId =
-      "esp32-" + device.macAddress.replace(/:/g, "").toLowerCase();
-    
-    console.log(`🔔 Attempting to notify device of claim:`);
-    console.log(`  - Database UUID: ${savedDevice.id}`);
-    console.log(`  - ESP32 Device ID: ${esp32DeviceId}`);
-    console.log(`  - MAC Address: ${device.macAddress}`);
-    
-    this.webSocketService.notifyDeviceClaimed(esp32DeviceId, claimData);
+    // Notify the ESP32 device via WebSocket using the database UUID
+    this.webSocketService.notifyDeviceClaimed(savedDevice.id, claimData);
 
     return savedDevice;
   }

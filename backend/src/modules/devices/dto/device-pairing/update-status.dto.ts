@@ -1,4 +1,11 @@
-import { IsBoolean, IsOptional, IsString, IsDateString } from "class-validator";
+import {
+  IsBoolean,
+  IsOptional,
+  IsString,
+  IsDateString,
+  IsNumber,
+  IsObject,
+} from "class-validator";
 
 export class UpdateStatusDto {
   @IsOptional()
@@ -16,4 +23,24 @@ export class UpdateStatusDto {
   @IsOptional()
   @IsDateString()
   lastSeenAt?: string;
+
+  @IsOptional()
+  @IsString()
+  firmwareVersion?: string;
+
+  @IsOptional()
+  @IsString()
+  macAddress?: string;
+
+  @IsOptional()
+  @IsNumber()
+  wifiRSSI?: number;
+
+  @IsOptional()
+  @IsObject()
+  systemStats?: {
+    freeHeap?: number;
+    uptime?: number;
+    lastUpdate?: Date;
+  };
 }
