@@ -99,6 +99,88 @@ export class DevicesController {
     return this.devicesService.findByMacAddress(macAddress);
   }
 
+  @Public()
+  @Get("discover/unpaired")
+  async discoverUnpairedDevices() {
+    console.log("🔍 Discovering unpaired devices...");
+
+    const unpairedDevices = await this.devicesService.findUnpairedDevices();
+    console.log(
+      `📊 Found ${unpairedDevices.length} total unpaired devices in database`
+    );
+
+    const activeDevices = unpairedDevices
+      .filter((device) => {
+        // Only show devices active in last 30 minutes (extended from 10 for debugging)
+        if (!device.lastSeenAt) {
+          console.log(`⚠️ Device ${device.name} has no lastSeenAt`);
+          return false;
+        }
+        const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+        const isRecent = device.lastSeenAt > thirtyMinutesAgo;
+        console.log(
+          `📅 Device ${device.name}: lastSeen=${device.lastSeenAt}, isRecent=${isRecent}`
+        );
+        return isRecent;
+      })
+      .map((device) => ({
+        id: device.id,
+        name: device.name || `PalPalette-${device.macAddress.slice(-4)}`,
+        deviceType: device.type,
+        firmwareVersion: device.firmwareVersion,
+        ipAddress: device.ipAddress,
+        macAddress: device.macAddress.slice(-4), // Only show last 4 chars for privacy
+        lastSeen: device.lastSeenAt,
+        pairingCodeExpires: device.pairingCodeExpiresAt,
+        isActive: true,
+      }));
+
+    console.log(`📱 Returning ${activeDevices.length} active unpaired devices`);
+    return { devices: activeDevices };
+  }
+
+  @Public()
+  @Get("debug/all-devices")
+  async debugAllDevices() {
+    console.log("🐛 DEBUG: Fetching all devices for debugging...");
+    const allDevices = await this.devicesService.findAll();
+
+    return allDevices.map((device) => ({
+      id: device.id,
+      name: device.name,
+      macAddress: device.macAddress,
+      userId: device.user?.id || null,
+      userEmail: device.user?.email || null,
+      lastSeenAt: device.lastSeenAt,
+      status: device.status,
+      isProvisioned: device.isProvisioned,
+      pairingCode: device.pairingCode,
+      pairingCodeExpires: device.pairingCodeExpiresAt,
+    }));
+  }
+
+  @Public()
+  @Get(":deviceId/pairing-info")
+  async getDevicePairingInfo(@Param("deviceId") deviceId: string) {
+    const device = await this.devicesService.findOne(deviceId);
+
+    if (!device) {
+      throw new Error("Device not found");
+    }
+
+    if (device.user) {
+      throw new Error("Device is already claimed");
+    }
+
+    return {
+      deviceId: device.id,
+      pairingCode: device.pairingCode,
+      deviceName: device.name || `PalPalette-${device.macAddress.slice(-4)}`,
+      firmwareVersion: device.firmwareVersion,
+      pairingExpires: device.pairingCodeExpiresAt,
+    };
+  }
+
   // Lighting System Management Endpoints
   @UseGuards(JwtAuthGuard)
   @Post(":id/lighting/configure")

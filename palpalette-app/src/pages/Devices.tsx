@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useHistory } from "react-router-dom";
 import {
   IonContent,
   IonHeader,
@@ -44,6 +45,7 @@ import { useDeviceNotifications } from "../hooks/useDeviceNotifications";
 const Devices: React.FC = () => {
   const { devices, loading, refreshDevices, resetDevice } = useDevices();
   const { authenticatingDevices } = useDeviceNotifications();
+  const history = useHistory();
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [showPairingModal, setShowPairingModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -272,7 +274,7 @@ const Devices: React.FC = () => {
         </div>
 
         <IonFab vertical="bottom" horizontal="end" slot="fixed">
-          <IonFabButton onClick={() => setShowPairingModal(true)}>
+          <IonFabButton onClick={() => history.push("/devices/discover")}>
             <IonIcon icon={add} />
           </IonFabButton>
         </IonFab>

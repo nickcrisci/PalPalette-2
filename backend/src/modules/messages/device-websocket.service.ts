@@ -13,8 +13,7 @@ import { DevicesService } from "../devices/devices.service";
 export class DeviceWebSocketService implements OnApplicationBootstrap {
   private readonly logger = new Logger(DeviceWebSocketService.name);
   private wss: WebSocket.Server;
-  private deviceConnections = new Map<string, WebSocket>(); // ESP32 device ID -> WebSocket
-  private deviceIdMapping = new Map<string, string>(); // Database UUID -> ESP32 device ID
+  private deviceConnections = new Map<string, WebSocket>(); // Database UUID -> WebSocket
   private server: any;
 
   constructor(
@@ -45,6 +44,37 @@ export class DeviceWebSocketService implements OnApplicationBootstrap {
       this.wss.on("connection", (ws: WebSocket, request) => {
         const clientIP = request.socket.remoteAddress || "unknown";
         this.logger.log(`ESP32 WebSocket client connected from: ${clientIP}`);
+
+        // Handle ping frames (heartbeats) - this updates lastSeenAt
+        ws.on("ping", async (data) => {
+          this.logger.debug(`💓 Ping received from ${clientIP}`);
+
+          // Find the device associated with this WebSocket
+          let deviceId = null;
+          for (const [id, connection] of this.deviceConnections.entries()) {
+            if (connection === ws) {
+              deviceId = id;
+              break;
+            }
+          }
+
+          if (deviceId) {
+            try {
+              // Update lastSeenAt in database
+              await this.updateDeviceLastSeen(deviceId);
+              this.logger.debug(
+                `💓 Updated lastSeenAt for device: ${deviceId}`
+              );
+            } catch (error) {
+              this.logger.error(
+                `❌ Failed to update lastSeenAt for device ${deviceId}: ${error.message}`
+              );
+            }
+          }
+
+          // Send pong response (WebSocket auto-responds, but we can log it)
+          this.logger.debug(`🏓 Pong sent to ${clientIP}`);
+        });
 
         ws.on("message", (data: WebSocket.Data) => {
           try {
@@ -100,29 +130,79 @@ export class DeviceWebSocketService implements OnApplicationBootstrap {
     if (message.event === "registerDevice") {
       const { deviceId } = message.data;
 
+      this.logger.log(`🔍 Device registration request for: ${deviceId}`);
+
+      // Determine if this is an ESP32 device ID or database UUID
+      let esp32DeviceId: string;
+      let databaseUuid: string;
+
+      if (deviceId.startsWith("esp32-")) {
+        // Device sent ESP32 format ID
+        esp32DeviceId = deviceId;
+        databaseUuid = null; // Will be looked up in updateDeviceMapping
+        this.logger.debug(`📱 Device using ESP32 format ID: ${esp32DeviceId}`);
+      } else {
+        // Device sent database UUID - need to derive ESP32 ID from MAC
+        databaseUuid = deviceId;
+
+        try {
+          // Look up device in database to get MAC address
+          const response = await fetch(
+            `http://localhost:3000/devices/${databaseUuid}`
+          );
+          if (response.ok) {
+            const device = await response.json();
+            // Convert MAC address to ESP32 device ID format
+            // MAC "B0:81:84:05:FF:98" -> ESP32 ID "esp32-b0818405ff98"
+            const macHex = device.macAddress.replace(/:/g, "").toLowerCase();
+            esp32DeviceId = `esp32-${macHex}`;
+            this.logger.debug(
+              `🔄 Converted UUID ${databaseUuid} to ESP32 ID: ${esp32DeviceId}`
+            );
+          } else {
+            this.logger.error(`❌ Failed to lookup device ${databaseUuid}`);
+            return;
+          }
+        } catch (error) {
+          this.logger.error(
+            `❌ Error looking up device ${databaseUuid}: ${error.message}`
+          );
+          return;
+        }
+      }
+
       // Check if device was previously connected
-      if (this.deviceConnections.has(deviceId)) {
+      if (
+        this.deviceConnections.has(esp32DeviceId) ||
+        this.deviceConnections.has(databaseUuid)
+      ) {
+        this.logger.log(`Device was already registered, updating connection`);
+      }
+
+      // Register WebSocket connection with ESP32 device ID (this is the primary key)
+      this.deviceConnections.set(esp32DeviceId, ws);
+      this.logger.log(
+        `✅ Device registered: ${esp32DeviceId} (Total connected: ${this.deviceConnections.size})`
+      );
+
+      // If we have the database UUID, also register under that for backwards compatibility
+      if (databaseUuid) {
+        this.deviceConnections.set(databaseUuid, ws);
         this.logger.log(
-          `Device ${deviceId} was already registered, updating connection`
+          `✅ Device also registered under UUID: ${databaseUuid}`
         );
       }
 
-      // Register WebSocket connection with ESP32 device ID
-      this.deviceConnections.set(deviceId, ws);
-      this.logger.log(
-        `Device registered: ${deviceId} (Total connected: ${this.deviceConnections.size})`
-      );
-
       // Find and cache the database UUID for this ESP32 device ID
-      await this.updateDeviceMapping(deviceId);
+      await this.updateDeviceMapping(esp32DeviceId);
 
       // Send pending lighting configuration if any
-      await this.sendPendingLightingConfig(deviceId);
+      await this.sendPendingLightingConfig(esp32DeviceId);
 
       ws.send(
         JSON.stringify({
           event: "deviceRegistered",
-          data: { deviceId, status: "registered" },
+          data: { deviceId: esp32DeviceId, status: "registered" },
         })
       );
     } else if (message.event === "completeSetup") {
@@ -193,6 +273,114 @@ export class DeviceWebSocketService implements OnApplicationBootstrap {
       }
     } catch (error) {
       this.logger.error(`Error updating device mapping: ${error.message}`);
+    }
+  }
+
+  private async updateDeviceLastSeen(deviceId: string): Promise<void> {
+    try {
+      let macAddress: string;
+
+      // Check if deviceId is an ESP32 format (esp32-xxxxxx) or a UUID
+      if (deviceId.startsWith("esp32-")) {
+        // Extract MAC address from ESP32 device ID
+        // esp32DeviceId format: "esp32-b0818405ff98" -> MAC: "B0:81:84:05:FF:98"
+        const macHex = deviceId.replace("esp32-", "");
+
+        if (macHex.length !== 12) {
+          this.logger.error(
+            `Invalid ESP32 device ID format: ${deviceId}, expected 12 hex chars after 'esp32-'`
+          );
+          return;
+        }
+
+        macAddress = macHex.match(/.{2}/g)?.join(":").toUpperCase();
+
+        if (!macAddress) {
+          this.logger.error(
+            `Cannot extract MAC address from ESP32 device ID: ${deviceId}`
+          );
+          return;
+        }
+
+        this.logger.debug(
+          `🔍 Extracted MAC address: ${macAddress} from ESP32 device ID: ${deviceId}`
+        );
+      } else {
+        // Assume it's a database UUID, look up the device directly
+        this.logger.debug(
+          `🔍 Device ID appears to be UUID, updating directly: ${deviceId}`
+        );
+
+        try {
+          const updateResponse = await fetch(
+            `http://localhost:3000/devices/${deviceId}`,
+            {
+              method: "PATCH",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                lastSeenAt: new Date().toISOString(),
+              }),
+            }
+          );
+
+          if (updateResponse.ok) {
+            this.logger.debug(
+              `✅ Updated lastSeenAt for device UUID: ${deviceId}`
+            );
+          } else {
+            this.logger.error(
+              `❌ Failed to update lastSeenAt for UUID ${deviceId}: ${await updateResponse.text()}`
+            );
+          }
+          return;
+        } catch (error) {
+          this.logger.error(
+            `❌ Failed to update lastSeenAt for UUID ${deviceId}: ${error.message}`
+          );
+          return;
+        }
+      }
+
+      // Update device lastSeenAt via HTTP API
+      const response = await fetch(
+        `http://localhost:3000/devices/by-mac/${encodeURIComponent(macAddress)}`
+      );
+
+      if (response.ok) {
+        const device = await response.json();
+
+        // Update lastSeenAt
+        const updateResponse = await fetch(
+          `http://localhost:3000/devices/${device.id}`,
+          {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              lastSeenAt: new Date().toISOString(),
+            }),
+          }
+        );
+
+        if (updateResponse.ok) {
+          this.logger.debug(`✅ Updated lastSeenAt for device: ${deviceId}`);
+        } else {
+          this.logger.error(
+            `❌ Failed to update lastSeenAt: ${await updateResponse.text()}`
+          );
+        }
+      } else {
+        this.logger.warn(
+          `Device with MAC ${macAddress} not found for lastSeenAt update`
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        `❌ Failed to update lastSeenAt for device ${deviceId}: ${error.message}`
+      );
     }
   }
 
@@ -522,29 +710,41 @@ export class DeviceWebSocketService implements OnApplicationBootstrap {
   }
 
   private removeDeviceConnection(ws: WebSocket) {
-    for (const [esp32DeviceId, socket] of this.deviceConnections.entries()) {
+    const devicesToRemove: string[] = [];
+
+    // Find all device IDs associated with this WebSocket
+    for (const [deviceId, socket] of this.deviceConnections.entries()) {
       if (socket === ws) {
-        this.deviceConnections.delete(esp32DeviceId);
-
-        // Also remove from device ID mapping
-        for (const [
-          databaseUuid,
-          mappedEsp32Id,
-        ] of this.deviceIdMapping.entries()) {
-          if (mappedEsp32Id === esp32DeviceId) {
-            this.deviceIdMapping.delete(databaseUuid);
-            this.logger.log(
-              `🗑️ Removed device mapping: ${databaseUuid} -> ${esp32DeviceId}`
-            );
-            break;
-          }
-        }
-
-        this.logger.log(
-          `Device ${esp32DeviceId} removed from connections (Total remaining: ${this.deviceConnections.size})`
-        );
-        break;
+        devicesToRemove.push(deviceId);
       }
+    }
+
+    // Remove all found connections
+    for (const deviceId of devicesToRemove) {
+      this.deviceConnections.delete(deviceId);
+      this.logger.log(`🗑️ Removed device connection: ${deviceId}`);
+    }
+
+    // Also clean up device ID mapping
+    for (const [
+      databaseUuid,
+      esp32DeviceId,
+    ] of this.deviceIdMapping.entries()) {
+      if (
+        devicesToRemove.includes(esp32DeviceId) ||
+        devicesToRemove.includes(databaseUuid)
+      ) {
+        this.deviceIdMapping.delete(databaseUuid);
+        this.logger.log(
+          `🗑️ Removed device mapping: ${databaseUuid} -> ${esp32DeviceId}`
+        );
+      }
+    }
+
+    if (devicesToRemove.length > 0) {
+      this.logger.log(
+        `🗑️ Removed ${devicesToRemove.length} device connection(s) (Total remaining: ${this.deviceConnections.size})`
+      );
     }
   }
 
@@ -599,7 +799,43 @@ export class DeviceWebSocketService implements OnApplicationBootstrap {
   }
 
   notifyDeviceClaimed(deviceId: string, claimData: any): boolean {
-    const ws = this.deviceConnections.get(deviceId);
+    this.logger.debug(`🔍 Attempting to notify device ${deviceId} of claim`);
+    this.logger.debug(
+      `Currently connected devices: ${Array.from(
+        this.deviceConnections.keys()
+      ).join(", ")}`
+    );
+
+    // Try to find device connection - deviceId could be either ESP32 ID or database UUID
+    let ws = this.deviceConnections.get(deviceId);
+    let actualDeviceId = deviceId;
+
+    if (!ws) {
+      // If not found directly, check if deviceId is an ESP32 format and we need to find the UUID
+      if (deviceId.startsWith("esp32-")) {
+        // Find the corresponding UUID in deviceIdMapping
+        for (const [databaseUuid, esp32Id] of this.deviceIdMapping.entries()) {
+          if (esp32Id === deviceId) {
+            ws = this.deviceConnections.get(databaseUuid);
+            actualDeviceId = databaseUuid;
+            this.logger.debug(
+              `🔄 Found device by ESP32 ID mapping: ${deviceId} -> ${databaseUuid}`
+            );
+            break;
+          }
+        }
+      } else {
+        // deviceId is likely a UUID, check if we have a reverse mapping to ESP32 ID
+        const esp32Id = this.deviceIdMapping.get(deviceId);
+        if (esp32Id) {
+          ws = this.deviceConnections.get(esp32Id);
+          actualDeviceId = esp32Id;
+          this.logger.debug(
+            `🔄 Found device by UUID mapping: ${deviceId} -> ${esp32Id}`
+          );
+        }
+      }
+    }
 
     if (ws && ws.readyState === WebSocket.OPEN) {
       const message = {
@@ -612,8 +848,22 @@ export class DeviceWebSocketService implements OnApplicationBootstrap {
       };
 
       ws.send(JSON.stringify(message));
-      this.logger.log(`Device claimed notification sent to ${deviceId}`);
+      this.logger.log(
+        `✅ Device claimed notification sent to ${actualDeviceId} (original ID: ${deviceId})`
+      );
       return true;
+    }
+
+    if (ws) {
+      this.logger.warn(
+        `Device ${actualDeviceId} WebSocket connection state: ${ws.readyState} (expected: ${WebSocket.OPEN})`
+      );
+    } else {
+      this.logger.warn(
+        `Device ${deviceId} not found in connections. Available devices: ${
+          Array.from(this.deviceConnections.keys()).join(", ") || "none"
+        }`
+      );
     }
 
     this.logger.warn(`Device ${deviceId} not connected for claim notification`);

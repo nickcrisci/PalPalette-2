@@ -21,6 +21,7 @@ import { useAuth } from "./hooks/useContexts";
 
 // Lazy load page components
 const Devices = lazy(() => import("./pages/Devices"));
+const DeviceDiscovery = lazy(() => import("./pages/DeviceDiscovery"));
 const ColorPalette = lazy(() => import("./pages/ColorPalette"));
 const PaletteCreator = lazy(() => import("./pages/PaletteCreator"));
 const Friends = lazy(() => import("./pages/Friends"));
@@ -89,6 +90,9 @@ const AppContent: React.FC = () => {
         >
           <Route exact path="/devices">
             <Devices />
+          </Route>
+          <Route exact path="/devices/discover">
+            <DeviceDiscovery />
           </Route>
           <Route exact path="/palette">
             <ColorPalette />

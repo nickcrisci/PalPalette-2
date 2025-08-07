@@ -47,7 +47,28 @@ export interface PairingCodeResponse {
 
 export interface ClaimDeviceRequest {
   pairingCode: string;
+  deviceName?: string;
+}
+
+export interface ClaimByCodeRequest {
+  pairingCode: string;
   deviceName: string;
+}
+
+export interface UnpairedDevice {
+  id: string;
+  name: string;
+  deviceType: string;
+  firmwareVersion: string;
+  ipAddress: string;
+  macAddress: string;
+  lastSeen: string;
+  pairingCodeExpires: string;
+  isActive: boolean;
+}
+
+export interface DeviceDiscoveryResponse {
+  devices: UnpairedDevice[];
 }
 
 export interface UpdateDeviceRequest {
@@ -71,6 +92,33 @@ export class DevicesAPI extends BaseAPIClient {
    */
   async claimDevice(data: ClaimDeviceRequest): Promise<Device> {
     return this.post<Device>("/devices/claim-by-code", data);
+  }
+
+  /**
+   * Claim a device by ID and pairing code
+   */
+  async claimByCode(data: ClaimByCodeRequest): Promise<Device> {
+    return this.post<Device>("/devices/claim-by-code", data);
+  }
+
+  /**
+   * Discover unpaired devices on the network
+   */
+  async discoverUnpairedDevices(): Promise<DeviceDiscoveryResponse> {
+    return this.get<DeviceDiscoveryResponse>("/devices/discover/unpaired");
+  }
+
+  /**
+   * Get pairing information for a specific device
+   */
+  async getDevicePairingInfo(deviceId: string): Promise<{
+    deviceId: string;
+    pairingCode: string;
+    deviceName: string;
+    firmwareVersion: string;
+    pairingExpires: string;
+  }> {
+    return this.get(`/devices/${deviceId}/pairing-info`);
   }
 
   /**

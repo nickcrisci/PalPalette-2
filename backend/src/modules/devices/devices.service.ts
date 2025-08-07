@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { Repository, IsNull } from "typeorm";
 import { JwtService } from "@nestjs/jwt";
 import { Device } from "./entities/device.entity";
 import { User } from "../users/entities/user.entity";
@@ -55,6 +55,28 @@ export class DevicesService {
     }
 
     return device;
+  }
+
+  async findUnpairedDevices(): Promise<Device[]> {
+    console.log("🔍 DevicesService: Searching for unpaired devices...");
+    const devices = await this.deviceRepository.find({
+      where: { user: IsNull() },
+      order: { lastSeenAt: "DESC" },
+    });
+    console.log(
+      `🔍 DevicesService: Found ${devices.length} devices with user=null`
+    );
+
+    // Log each device for debugging
+    devices.forEach((device) => {
+      console.log(
+        `📱 Device: ${device.name} (${device.macAddress}) - User: ${
+          device.user ? "PAIRED" : "UNPAIRED"
+        }, LastSeen: ${device.lastSeenAt}`
+      );
+    });
+
+    return devices;
   }
 
   async update(id: string, updateDeviceDto: UpdateDeviceDto): Promise<Device> {

@@ -10,6 +10,9 @@ export type {
   DeviceNetwork,
   PairingCodeResponse,
   ClaimDeviceRequest,
+  ClaimByCodeRequest,
+  UnpairedDevice,
+  DeviceDiscoveryResponse,
   UpdateDeviceRequest,
 } from "./devices.api";
 
