@@ -17,9 +17,12 @@ import {
   IonCol,
   IonChip,
   IonLabel,
+  IonSegment,
+  IonSegmentButton,
 } from "@ionic/react";
-import { send, camera, shuffle } from "ionicons/icons";
+import { send, camera, shuffle, colorPalette, brush } from "ionicons/icons";
 import { PhotoPicker } from "../components/common";
+import { ColorPicker } from "../components/common/ColorPicker";
 import { FriendSelector } from "../components/common";
 import {
   ColorPalette,
@@ -27,7 +30,10 @@ import {
 } from "../services/ColorExtractionService";
 import { MessagesService } from "../services/MessagesService";
 
+type CreationMode = "photo" | "manual";
+
 const PaletteCreator: React.FC = () => {
+  const [creationMode, setCreationMode] = useState<CreationMode>("photo");
   const [currentPalette, setCurrentPalette] = useState<ColorPalette | null>(
     null
   );
@@ -51,6 +57,49 @@ const PaletteCreator: React.FC = () => {
   const handlePaletteExtracted = (palette: ColorPalette) => {
     setCurrentPalette(palette);
     showMessage("Colors extracted! Arrange them and send to friends!");
+  };
+
+  const handleManualColorsSelected = (colors: string[]) => {
+    const extractedColors: ExtractedColor[] = colors.map((hex) => ({
+      hex,
+      rgb: hexToRgb(hex),
+      name: getColorName(hex),
+    }));
+
+    // Find the most vibrant color as dominant
+    const dominantColor = extractedColors[0] || extractedColors[0];
+
+    setCurrentPalette({
+      colors: extractedColors,
+      dominantColor,
+      source: "gallery", // Use gallery as closest match for manual
+      imageUrl: undefined, // No image for manual palettes
+    });
+    showMessage("Custom palette created! Arrange colors and send to friends!");
+  };
+
+  // Helper function to convert hex to RGB as tuple
+  const hexToRgb = (hex: string): [number, number, number] => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result
+      ? [
+          parseInt(result[1], 16),
+          parseInt(result[2], 16),
+          parseInt(result[3], 16),
+        ]
+      : [0, 0, 0];
+  };
+
+  // Simple color name approximation
+  const getColorName = (hex: string) => {
+    const rgb = hexToRgb(hex);
+    const [r, g, b] = rgb;
+    if (r > g && r > b) return "Red-ish";
+    if (g > r && g > b) return "Green-ish";
+    if (b > r && b > g) return "Blue-ish";
+    if (r > 200 && g > 200 && b > 200) return "Light";
+    if (r < 50 && g < 50 && b < 50) return "Dark";
+    return "Mixed";
   };
 
   const handleColorsReordered = (colors: ExtractedColor[]) => {
@@ -161,31 +210,67 @@ const PaletteCreator: React.FC = () => {
         <div style={{ padding: "16px" }}>
           {!currentPalette ? (
             <div className="empty-state">
+              {/* Mode Selection */}
               <IonCard>
                 <IonCardContent
-                  style={{ textAlign: "center", padding: "32px" }}
+                  style={{ textAlign: "center", padding: "24px" }}
                 >
-                  <IonIcon
-                    icon={camera}
-                    style={{
-                      fontSize: "64px",
-                      color: "var(--ion-color-primary)",
-                    }}
-                  />
                   <IonText>
-                    <h2>Share Colors with Friends</h2>
-                    <p>
-                      Take a photo or select one from your gallery to extract
-                      colors and send them to your friends' devices.
-                    </p>
+                    <h2>🎨 Create Color Palette</h2>
+                    <p>Choose how you want to create your palette</p>
                   </IonText>
 
-                  <div style={{ marginTop: "24px" }}>
-                    <PhotoPicker
-                      onPaletteExtracted={handlePaletteExtracted}
-                      onError={(error) => showMessage(error, "danger")}
-                    />
-                  </div>
+                  <IonSegment
+                    value={creationMode}
+                    onIonChange={(e) =>
+                      setCreationMode(e.detail.value as CreationMode)
+                    }
+                    style={{ marginTop: "16px", marginBottom: "24px" }}
+                  >
+                    <IonSegmentButton value="photo">
+                      <IonIcon icon={camera} />
+                      <IonLabel>From Photo</IonLabel>
+                    </IonSegmentButton>
+                    <IonSegmentButton value="manual">
+                      <IonIcon icon={brush} />
+                      <IonLabel>Pick Colors</IonLabel>
+                    </IonSegmentButton>
+                  </IonSegment>
+
+                  {creationMode === "photo" ? (
+                    <div>
+                      <IonIcon
+                        icon={camera}
+                        style={{
+                          fontSize: "64px",
+                          color: "var(--ion-color-primary)",
+                          marginBottom: "16px",
+                        }}
+                      />
+                      <IonText>
+                        <h3>Extract from Photo</h3>
+                        <p>
+                          Take a photo or select one from your gallery to
+                          extract colors and send them to your friends' devices.
+                        </p>
+                      </IonText>
+
+                      <div style={{ marginTop: "24px" }}>
+                        <PhotoPicker
+                          onPaletteExtracted={handlePaletteExtracted}
+                          onError={(error) => showMessage(error, "danger")}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <ColorPicker
+                        onColorsSelected={handleManualColorsSelected}
+                        maxColors={6}
+                        minColors={2}
+                      />
+                    </div>
+                  )}
                 </IonCardContent>
               </IonCard>
             </div>
@@ -302,11 +387,23 @@ const PaletteCreator: React.FC = () => {
                   </div>
 
                   <div style={{ marginTop: "12px" }}>
-                    <PhotoPicker
-                      onPaletteExtracted={handlePaletteExtracted}
-                      onError={(error) => showMessage(error, "danger")}
-                    />
+                    <IonButton
+                      expand="block"
+                      fill="outline"
+                      onClick={() => setCurrentPalette(null)}
+                    >
+                      Start Over
+                    </IonButton>
                   </div>
+
+                  {creationMode === "photo" && (
+                    <div style={{ marginTop: "12px" }}>
+                      <PhotoPicker
+                        onPaletteExtracted={handlePaletteExtracted}
+                        onError={(error) => showMessage(error, "danger")}
+                      />
+                    </div>
+                  )}
                 </IonCardContent>
               </IonCard>
 

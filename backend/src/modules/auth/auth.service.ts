@@ -31,4 +31,25 @@ export class AuthService {
       user,
     };
   }
+
+  async refreshToken(userId: string) {
+    const user = await this.usersService.findById(userId);
+    if (!user) throw new UnauthorizedException("User not found");
+
+    const payload = { sub: user.id, email: user.email };
+    return {
+      access_token: this.jwtService.sign(payload),
+      user,
+    };
+  }
+
+  async validateToken(token: string) {
+    try {
+      const payload = this.jwtService.verify(token);
+      const user = await this.usersService.findById(payload.sub);
+      return user ? { valid: true, user } : { valid: false };
+    } catch (error) {
+      return { valid: false };
+    }
+  }
 }

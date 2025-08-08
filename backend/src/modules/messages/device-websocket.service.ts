@@ -760,4 +760,39 @@ export class DeviceWebSocketService implements OnApplicationBootstrap {
     this.logger.warn(`Device ${deviceId} not connected for lighting test`);
     return false;
   }
+
+  sendFactoryReset(deviceId: string): boolean {
+    this.logger.debug(
+      `Attempting to send factory reset to device: ${deviceId}`
+    );
+    this.logger.debug(
+      `Currently connected devices: ${Array.from(
+        this.deviceConnections.keys()
+      ).join(", ")}`
+    );
+
+    const ws = this.deviceConnections.get(deviceId);
+
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      const message = {
+        event: "factoryReset",
+        data: {
+          deviceId: deviceId,
+          timestamp: Date.now(),
+          message: "Device has been reset by user. Returning to setup mode.",
+        },
+      };
+
+      ws.send(JSON.stringify(message));
+      this.logger.log(`Factory reset command sent to device: ${deviceId}`);
+
+      // Remove the device from our connections since it will restart
+      this.removeDeviceConnection(deviceId);
+
+      return true;
+    }
+
+    this.logger.warn(`Device ${deviceId} not connected for factory reset`);
+    return false;
+  }
 }

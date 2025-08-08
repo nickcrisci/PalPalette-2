@@ -228,6 +228,10 @@ void WSClient::onMessageCallback(WebsocketsMessage message)
         {
             handleTestLightingSystem(doc);
         }
+        else if (event == "factoryReset")
+        {
+            handleFactoryReset(doc);
+        }
         else
         {
             Serial.println("⚠ Unknown event type: " + event);
@@ -851,4 +855,36 @@ void WSClient::sendDeviceStatus()
 
     Serial.println("📤 Sending device status: " + message);
     sendMessage(message);
+}
+
+void WSClient::handleFactoryReset(JsonDocument &doc)
+{
+    Serial.println("🔄 Factory reset command received via WebSocket");
+
+    // Send acknowledgment back to backend
+    if (isClientConnected())
+    {
+        JsonDocument response;
+        response["event"] = "factoryResetAcknowledged";
+        response["data"]["deviceId"] = deviceManager->getDeviceId();
+        response["data"]["timestamp"] = millis();
+
+        String message;
+        serializeJson(response, message);
+        sendMessage(message);
+
+        Serial.println("📤 Sent factory reset acknowledgment");
+    }
+
+    // Give a moment for the message to be sent
+    delay(500);
+
+    // Perform the actual factory reset
+    if (deviceManager)
+    {
+        deviceManager->resetDevice();
+    }
+
+    // Reset will restart the device, so this code won't be reached
+    Serial.println("🔄 Factory reset initiated, device will restart...");
 }

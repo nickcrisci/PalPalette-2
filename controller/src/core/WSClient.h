@@ -39,6 +39,7 @@ private:
     void handleSetupComplete(JsonDocument &doc);
     void handleLightingSystemConfig(JsonDocument &doc);
     void handleTestLightingSystem(JsonDocument &doc);
+    void handleFactoryReset(JsonDocument &doc);
 
     // Connection management
     void onMessageCallback(WebsocketsMessage message);

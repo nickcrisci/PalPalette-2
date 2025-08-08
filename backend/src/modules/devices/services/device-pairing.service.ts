@@ -101,20 +101,55 @@ export class DevicePairingService {
       );
     }
 
-    // Reset device to unclaimed state
+    // Notify ESP32 device to factory reset before database reset
+    const factoryResetSent = this.webSocketService.sendFactoryReset(deviceId);
+
+    if (factoryResetSent) {
+      console.log(`🔄 Factory reset command sent to device ${deviceId}`);
+    } else {
+      console.log(
+        `⚠️ Device ${deviceId} not connected, performing database reset only`
+      );
+    }
+
+    // Reset device to unclaimed state in database
     device.user = null;
     device.name = `${device.type.toUpperCase()}-${device.macAddress
       .slice(-5)
       .replace(/:/g, "")}`;
     device.status = "unclaimed";
+    device.isProvisioned = false; // Reset provisioning status
+    device.ipAddress = null; // Clear IP address
+    device.wifiRSSI = null; // Clear WiFi signal strength
+
+    // Reset lighting system configuration
+    device.lightingSystemType = "ws2812"; // Default to WS2812
+    device.lightingHostAddress = null;
+    device.lightingPort = null;
+    device.lightingAuthToken = null;
+    device.lightingCustomConfig = {
+      ledPin: 2,
+      ledCount: 30,
+      brightness: 255,
+      colorOrder: "GRB",
+    };
+    device.lightingSystemConfigured = false;
+    device.lightingStatus = "unknown";
+    device.lightingLastTestAt = null;
 
     // Generate new pairing code if device is online
     if (device.isOnline) {
       device.pairingCode = this.generatePairingCode();
       device.pairingCodeExpiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
+    } else {
+      // Clear pairing code for offline devices
+      device.pairingCode = null;
+      device.pairingCodeExpiresAt = null;
     }
 
     await this.deviceRepository.save(device);
+
+    console.log(`✅ Device ${deviceId} has been fully reset to factory state`);
   }
 
   async validatePairingCode(code: string): Promise<Device | null> {

@@ -6,6 +6,7 @@ export const API_CONFIG = {
     AUTH: {
       LOGIN: "/auth/login",
       REGISTER: "/auth/register",
+      REFRESH: "/auth/refresh",
     },
     DEVICES: {
       MY_DEVICES: "/devices/my-devices",
