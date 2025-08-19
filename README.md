@@ -617,8 +617,8 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 _Bringing digital colors to life, one LED at a time_
 
-[![⭐ Star this repo](https://img.shields.io/github/stars/yourusername/PalPalette-2?style=social)](https://github.com/yourusername/PalPalette-2/stargazers)
-[![🍴 Fork this repo](https://img.shields.io/github/forks/yourusername/PalPalette-2?style=social)](https://github.com/yourusername/PalPalette-2/network/members)
-[![📢 Share on Twitter](https://img.shields.io/twitter/url?style=social&url=https%3A%2F%2Fgithub.com%2Fyourusername%2FPalPalette-2)](https://twitter.com/intent/tweet?text=Check%20out%20PalPalette%20-%20IoT%20Color%20Sharing%20Platform!&url=https://github.com/yourusername/PalPalette-2)
+[![⭐ Star this repo](https://img.shields.io/github/stars/nickcrisci/PalPalette-2?style=social)](https://github.com/nickcrisci/PalPalette-2/stargazers)
+[![🍴 Fork this repo](https://img.shields.io/github/forks/nickcrisci/PalPalette-2?style=social)](https://github.com/nickcrisci/PalPalette-2/network/members)
+[![📢 Share on Twitter](https://img.shields.io/twitter/url?style=social&url=https%3A%2F%2Fgithub.com%nickcrisci%2FPalPalette-2)](https://twitter.com/intent/tweet?text=Check%20out%20PalPalette%20-%20IoT%20Color%20Sharing%20Platform!&url=https://github.com/nickcrisci/PalPalette-2)
 
 </div>
