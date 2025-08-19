@@ -8,7 +8,7 @@
 // Default configuration values
 #define DEFAULT_AP_SSID "PalPalette-Setup"
 #define DEFAULT_AP_PASSWORD "setup123"
-#define DEFAULT_SERVER_URL "ws://192.168.178.23:3001/ws"
+#define DEFAULT_SERVER_URL "ws://cides06.gm.fh-koeln.de:3001/ws"
 
 // Timing constants
 #define WIFI_CONNECT_TIMEOUT 30000       // 30 seconds

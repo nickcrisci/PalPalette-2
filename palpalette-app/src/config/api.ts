@@ -1,7 +1,7 @@
 // API Configuration
 export const API_CONFIG = {
-  BASE_URL: "http://localhost:3000", // Backend URL
-  WEBSOCKET_URL: "http://localhost:3001", // WebSocket server for device communication
+  BASE_URL: "http://cides06.gm.fh-koeln.de:3000", // Backend URL
+  WEBSOCKET_URL: "http://cides06.gm.fh-koeln.de:3001", // WebSocket server for device communication
   ENDPOINTS: {
     AUTH: {
       LOGIN: "/auth/login",

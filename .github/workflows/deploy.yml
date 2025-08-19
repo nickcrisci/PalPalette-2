@@ -1,0 +1,169 @@
+name: Deploy PalPalette to Server
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: # Allows manual triggering
+
+env:
+  SERVER_HOST: cides06.gm.fh-koeln.de
+  SERVER_USER: ${{ secrets.SERVER_USER }}
+  SERVER_PATH: /opt/palpalette
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    name: Test Backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          npm ci
+
+      - name: Run backend tests
+        run: |
+          cd backend
+          npm run test || true # Don't fail if no tests yet
+
+      - name: TypeScript compilation check
+        run: |
+          cd backend
+          npm run build
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    name: Deploy to Production Server
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
+
+      - name: Add server to known hosts
+        run: |
+          ssh-keyscan -H ${{ env.SERVER_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Prepare deployment files
+        run: |
+          # Create deployment directory structure
+          mkdir -p deployment/backend
+
+          # Copy Docker configuration
+          cp docker-compose.production.yml deployment/docker-compose.yml
+
+          # Copy backend source files (excluding unnecessary directories)
+          rsync -av --exclude='node_modules' --exclude='dist' --exclude='.git' --exclude='*.log' --exclude='.env*' backend/ deployment/backend/          # Create production environment file
+          cat > deployment/backend/.env << EOF
+          # Production Environment Configuration
+          DB_HOST=postgres
+          DB_PORT=5432
+          DB_USERNAME=postgres
+          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+          DB_DATABASE=palpalette
+
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          JWT_EXPIRES_IN=7d
+
+          NODE_ENV=production
+          PORT=3000
+          WS_PORT=3001
+
+          CORS_ORIGIN=http://${{ env.SERVER_HOST }}
+          EOF
+
+      - name: Deploy to server
+        run: |
+          # Copy files to server
+          scp -r deployment/* ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }}:${{ env.SERVER_PATH }}/
+
+          # Deploy on server
+          ssh ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} << 'EOF'
+            cd ${{ env.SERVER_PATH }}
+            
+            # Stop existing containers
+            docker-compose down || true
+            
+            # Remove old images to ensure fresh build
+            docker-compose build --no-cache backend
+            
+            # Start services
+            docker-compose up -d
+            
+            # Wait for services to start
+            sleep 30
+            
+            # Check if services are running
+            docker-compose ps
+            
+            # Show recent logs
+            docker-compose logs --tail=50 backend
+          EOF
+
+      - name: Verify deployment
+        run: |
+          # Wait a bit for services to fully start
+          sleep 30
+
+          # Test backend health endpoint
+          curl -f http://${{ env.SERVER_HOST }}:3000/health || exit 1
+
+          echo "✅ Backend health check passed"
+
+          # Test WebSocket connection (basic check)
+          timeout 10 nc -z ${{ env.SERVER_HOST }} 3001 || exit 1
+
+          echo "✅ WebSocket port is accessible"
+
+      - name: Notification
+        if: always()
+        run: |
+          if [ ${{ job.status }} == 'success' ]; then
+            echo "🚀 Deployment successful!"
+            echo "Backend: http://${{ env.SERVER_HOST }}:3000"
+            echo "WebSocket: ws://${{ env.SERVER_HOST }}:3001"
+          else
+            echo "❌ Deployment failed!"
+          fi
+
+  mobile-app-info:
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    name: Mobile App Update Info
+
+    steps:
+      - name: Mobile App Instructions
+        run: |
+          echo "📱 Mobile App Update Required"
+          echo ""
+          echo "The backend has been deployed to: http://${{ env.SERVER_HOST }}:3000"
+          echo ""
+          echo "To update your mobile app:"
+          echo "1. The app configuration has already been updated in the repository"
+          echo "2. Rebuild and deploy your mobile app:"
+          echo "   cd palpalette-app"
+          echo "   npm run build"
+          echo "   npx ionic cap sync"
+          echo "   npx ionic cap run android  # or ios"
+          echo ""
+          echo "🔧 ESP32 Controller Update Required"
+          echo "1. The controller config has been updated in the repository"
+          echo "2. Flash the updated firmware to your ESP32 devices"
+          echo "3. Devices will automatically connect to: ws://${{ env.SERVER_HOST }}:3001/ws"

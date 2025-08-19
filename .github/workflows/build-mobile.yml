@@ -1,0 +1,104 @@
+name: Build Mobile App
+
+on:
+  push:
+    branches: [main]
+    paths: ["palpalette-app/**"]
+  pull_request:
+    branches: [main]
+    paths: ["palpalette-app/**"]
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    name: Build Android App
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+          cache-dependency-path: palpalette-app/package-lock.json
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Install dependencies
+        run: |
+          cd palpalette-app
+          npm ci
+
+      - name: Build web app
+        run: |
+          cd palpalette-app
+          npm run build
+
+      - name: Sync Capacitor
+        run: |
+          cd palpalette-app
+          npx ionic cap sync android
+
+      - name: Build Android APK
+        run: |
+          cd palpalette-app/android
+          ./gradlew assembleDebug
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: palpalette-app/android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
+
+  build-ios:
+    runs-on: macos-latest
+    name: Build iOS App
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+          cache-dependency-path: palpalette-app/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          cd palpalette-app
+          npm ci
+
+      - name: Build web app
+        run: |
+          cd palpalette-app
+          npm run build
+
+      - name: Sync Capacitor
+        run: |
+          cd palpalette-app
+          npx ionic cap sync ios
+
+      - name: Build iOS app
+        run: |
+          cd palpalette-app/ios/App
+          xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 14' build
+
+      - name: Archive iOS build
+        run: |
+          cd palpalette-app/ios/App
+          tar -czf ios-build.tar.gz DerivedData/
+
+      - name: Upload iOS build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build
+          path: palpalette-app/ios/App/ios-build.tar.gz
+          retention-days: 30

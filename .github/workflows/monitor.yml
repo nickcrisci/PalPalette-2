@@ -1,0 +1,157 @@
+name: Monitor Production Status
+
+on:
+  schedule:
+    # Run every hour to check service health
+    - cron: "0 * * * *"
+  workflow_dispatch: # Allow manual triggering
+
+env:
+  SERVER_HOST: cides06.gm.fh-koeln.de
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    name: Production Health Check
+
+    steps:
+      - name: Check Backend API
+        run: |
+          echo "🔍 Checking backend health..."
+
+          # Test backend health endpoint
+          if curl -f --max-time 30 http://${{ env.SERVER_HOST }}:3000/health; then
+            echo "✅ Backend API is healthy"
+          else
+            echo "❌ Backend API health check failed"
+            exit 1
+          fi
+
+      - name: Check WebSocket Port
+        run: |
+          echo "🔍 Checking WebSocket connectivity..."
+
+          # Test WebSocket port accessibility
+          if timeout 10 nc -z ${{ env.SERVER_HOST }} 3001; then
+            echo "✅ WebSocket port 3001 is accessible"
+          else
+            echo "❌ WebSocket port 3001 is not accessible"
+            exit 1
+          fi
+
+      - name: Performance Check
+        run: |
+          echo "🔍 Running performance check..."
+
+          # Test response time
+          response_time=$(curl -o /dev/null -s -w '%{time_total}' http://${{ env.SERVER_HOST }}:3000/health)
+
+          echo "⏱️ Response time: ${response_time}s"
+
+          # Check if response time is acceptable (< 5 seconds)
+          if (( $(echo "$response_time < 5.0" | bc -l) )); then
+            echo "✅ Response time is acceptable"
+          else
+            echo "⚠️ Response time is slow (>${response_time}s)"
+          fi
+
+      - name: Create Status Badge
+        if: always()
+        run: |
+          if [ ${{ job.status }} == 'success' ]; then
+            echo "Status: 🟢 Online" >> $GITHUB_STEP_SUMMARY
+            echo "Backend: ✅ Healthy" >> $GITHUB_STEP_SUMMARY
+            echo "WebSocket: ✅ Accessible" >> $GITHUB_STEP_SUMMARY
+            echo "Last Check: $(date)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Status: 🔴 Issues Detected" >> $GITHUB_STEP_SUMMARY
+            echo "Last Check: $(date)" >> $GITHUB_STEP_SUMMARY
+            echo "Check logs for details" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  notify-on-failure:
+    needs: health-check
+    runs-on: ubuntu-latest
+    if: failure()
+    name: Notify on Failure
+
+    steps:
+      - name: Create Issue on Failure
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = `🚨 Production Server Health Check Failed - ${new Date().toISOString()}`;
+            const body = `
+            ## Production Server Health Check Failed
+
+            **Server:** ${{ env.SERVER_HOST }}
+            **Time:** ${new Date().toISOString()}
+            **Workflow:** ${{ github.workflow }}
+            **Run ID:** ${{ github.run_id }}
+
+            ### Issues Detected:
+            - Backend API or WebSocket connectivity issues
+            - Check the [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details
+
+            ### Next Steps:
+            1. Check server status: \`ssh user@${{ env.SERVER_HOST }}\`
+            2. Check Docker containers: \`docker-compose ps\`
+            3. Check logs: \`docker-compose logs backend\`
+            4. Restart services if needed: \`docker-compose restart\`
+
+            This issue will be automatically closed when the health check passes again.
+            `;
+
+            // Check if there's already an open issue for this
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: ['production-health', 'automated']
+            });
+
+            if (issues.data.length === 0) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: title,
+                body: body,
+                labels: ['production-health', 'automated', 'bug']
+              });
+            }
+
+  close-issues-on-success:
+    needs: health-check
+    runs-on: ubuntu-latest
+    if: success()
+    name: Close Issues on Success
+
+    steps:
+      - name: Close Health Check Issues
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Find open health check issues
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: ['production-health', 'automated']
+            });
+
+            // Close them with a success comment
+            for (const issue of issues.data) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `✅ Health check is now passing. Automatically closing this issue.\n\n**Resolved at:** ${new Date().toISOString()}`
+              });
+              
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                state: 'closed'
+              });
+            }
