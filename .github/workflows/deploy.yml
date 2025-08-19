@@ -2,6 +2,24 @@ name: Create Deployment Release
 
 on:
   push:
+    branches: [ main ]
+    paths:
+      - 'backend/**'
+      - 'docker-compose.production.yml'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch: # Allows manual triggering
+
+# Add permissions for the workflow
+permissions:
+  contents: write  # Required to create releases
+  issues: write    # Required for issue creation (if used)
+  actions: read    # Required for workflow access
+
+env:
+  SERVER_HOST: cides06.gm.fh-koeln.deDeployment Release
+
+on:
+  push:
     branches: [main]
     paths:
       - "backend/**"

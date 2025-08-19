@@ -2,6 +2,22 @@ name: Build ESP32 Firmware
 
 on:
   push:
+    branches: [ main ]
+    paths: ['controller/**']
+  pull_request:
+    branches: [ main ]
+    paths: ['controller/**']
+  workflow_dispatch:
+
+# Add permissions for artifact upload
+permissions:
+  contents: read
+  actions: write
+
+jobs:ESP32 Firmware
+
+on:
+  push:
     branches: [main]
     paths: ["controller/**"]
   pull_request:

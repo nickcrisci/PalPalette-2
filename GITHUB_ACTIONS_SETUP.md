@@ -163,7 +163,33 @@ exit
 
 ## Testing the Setup
 
-### Test 1: Create a Deployment Package
+### Test 1: Check Repository Permissions
+
+First, verify your repository has the correct permissions:
+
+1. **Go to Repository Settings**:
+
+   - Navigate to: `https://github.com/nickcrisci/PalPalette-2/settings`
+   - Go to **Actions** → **General**
+
+2. **Set Workflow Permissions**:
+   - Under "Workflow permissions", select **"Read and write permissions"**
+   - Check **"Allow GitHub Actions to create and approve pull requests"**
+   - Click **Save**
+
+### Test 2: Test Release Creation
+
+1. **Run the test workflow**:
+
+   - Go to **Actions** tab
+   - Select **"Test Release Creation"** workflow
+   - Click **"Run workflow"** → **"Run workflow"**
+
+2. **Check if test release is created**:
+   - If successful, you'll see a test release in the **Releases** section
+   - You can delete the test release after verification
+
+### Test 3: Create a Deployment Package
 
 1. Make a small change to your code
 2. Push to main branch: `git push origin main`
@@ -223,6 +249,15 @@ curl http://localhost:3000/health
 ## Troubleshooting
 
 ### GitHub Actions Issues
+
+**Problem: "Create Release" fails with 403 error**
+
+- **Cause**: Insufficient permissions for GitHub Actions
+- **Solution**:
+  1. Go to Repository Settings → Actions → General
+  2. Set Workflow permissions to "Read and write permissions"
+  3. Enable "Allow GitHub Actions to create and approve pull requests"
+  4. Save settings and retry
 
 **Problem: Workflow doesn't trigger**
 

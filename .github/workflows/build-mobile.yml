@@ -2,6 +2,22 @@ name: Build Mobile App
 
 on:
   push:
+    branches: [ main ]
+    paths: ['palpalette-app/**']
+  pull_request:
+    branches: [ main ]
+    paths: ['palpalette-app/**']
+  workflow_dispatch:
+
+# Add permissions for artifact upload
+permissions:
+  contents: read
+  actions: write
+
+jobs:Mobile App
+
+on:
+  push:
     branches: [main]
     paths: ["palpalette-app/**"]
   pull_request:
