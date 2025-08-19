@@ -1,0 +1,70 @@
+name: Bug Report
+description: File a bug report to help us improve
+title: "[BUG]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which part of the system has the issue?
+      options:
+        - Backend API
+        - Mobile App
+        - ESP32 Controller
+        - Docker/Deployment
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is
+      placeholder: Tell us what happened!
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: Steps to reproduce the behavior
+      placeholder: |
+        1. Go to '...'
+        2. Click on '....'
+        3. Scroll down to '....'
+        4. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment Information
+      description: |
+        Please provide:
+        - OS (Windows/Mac/Linux)
+        - Browser (if applicable)
+        - Mobile device (if applicable)
+        - ESP32 board type (if applicable)
+      placeholder: |
+        OS: Windows 11
+        Browser: Chrome 120
+        Mobile: Android 13
+        ESP32: ESP32-WROOM-32
