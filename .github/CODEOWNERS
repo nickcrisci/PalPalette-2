@@ -1,0 +1,19 @@
+# Global owners
+* @nickcrisci
+
+# Backend specific
+backend/ @nickcrisci
+docker-compose.*.yml @nickcrisci
+
+# Mobile app specific
+palpalette-app/ @nickcrisci
+
+# Controller/Firmware specific
+controller/ @nickcrisci
+
+# Documentation
+*.md @nickcrisci
+docs/ @nickcrisci
+
+# CI/CD and deployment
+.github/ @nickcrisci
