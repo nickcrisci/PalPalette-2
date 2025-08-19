@@ -2,6 +2,20 @@
 
 A complete IoT system for sharing color palettes between users through ESP32-powered devices. Users can extract colors from photos, send them to friends, and display them on physical LED devices in real-time.
 
+## 🚀 Quick Start
+
+### Deploy to Server
+
+```bash
+git clone https://github.com/yourusername/PalPalette-2.git
+cd PalPalette-2
+cp .env.production.example .env.production
+# Edit .env.production with your values
+sudo docker-compose -f docker-compose.production.yml --env-file .env.production up -d --build
+```
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed deployment instructions.
+
 ## 🏗️ System Architecture
 
 ```

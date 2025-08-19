@@ -74,10 +74,10 @@ if [[ "${1}" == "--local" ]]; then
 DB_HOST=postgres
 DB_PORT=5432
 DB_USERNAME=postgres
-DB_PASSWORD=CHANGE_THIS_PASSWORD
+DB_PASSWORD=your_secure_database_password_here
 DB_DATABASE=palpalette
 
-JWT_SECRET=CHANGE_THIS_JWT_SECRET
+JWT_SECRET=your_very_long_jwt_secret_here_at_least_32_characters
 JWT_EXPIRES_IN=7d
 
 NODE_ENV=production

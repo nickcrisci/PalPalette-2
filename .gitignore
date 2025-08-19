@@ -1,8 +1,12 @@
+# Environment files
+.env
+.env.*
+!.env.example
+!.env.production.example
+
 # Node.js / NestJS
 node_modules/
 dist/
-.env
-.env.*
 .DS_Store
 
 # Logs
@@ -25,15 +29,26 @@ backend/dist/
 backend/.env
 backend/.env.*
 
-# Mobile App (future)
-mobile/node_modules/
-mobile/dist/
-mobile/.env
+# Mobile App
+palpalette-app/node_modules/
+palpalette-app/dist/
+palpalette-app/.env
+palpalette-app/android/app/release/
+palpalette-app/ios/App/build/
 
-# Firmware (future)
-firmware/build/
-firmware/.pioenvs/
-firmware/.pio/libdeps/
+# Controller/Firmware
+controller/.pio/
+controller/.pioenvs/
+controller/build/
+
+# Database
+*.db
+*.sqlite
+
+# Docker
+.docker/
 
 # Misc
-*.swp 
+*.swp
+.tmp/
+temp/ 
