@@ -5,7 +5,7 @@
 backend/ @nickcrisci
 docker-compose.*.yml @nickcrisci
 
-# Mobile app specific  
+# Mobile app specific
 palpalette-app/ @nickcrisci
 
 # Controller/Firmware specific
