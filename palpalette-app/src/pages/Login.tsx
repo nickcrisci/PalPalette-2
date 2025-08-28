@@ -17,7 +17,7 @@ import {
   IonIcon,
 } from "@ionic/react";
 import { colorPalette } from "ionicons/icons";
-import { useAuth } from "../hooks/useContexts";
+import { useAuth } from "../hooks/useAuth";
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState("");

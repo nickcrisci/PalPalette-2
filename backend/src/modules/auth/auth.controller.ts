@@ -28,14 +28,20 @@ export class AuthController {
 
   @Public()
   @Post("login")
-  async login(@Body() loginUserDto: LoginUserDto) {
+  async login(@Body() loginUserDto: LoginUserDto & { device_name?: string }) {
     return this.authService.login(loginUserDto);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @Public()
   @Post("refresh")
-  async refresh(@Request() req) {
-    return this.authService.refreshToken(req.user.userId);
+  async refresh(@Body() body: { refresh_token: string }) {
+    return this.authService.refreshTokens(body.refresh_token);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("logout")
+  async logout(@Request() req) {
+    return this.authService.logout(req.user.userId);
   }
 
   @Public()
