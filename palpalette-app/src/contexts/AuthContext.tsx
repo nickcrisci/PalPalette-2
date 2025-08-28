@@ -55,8 +55,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     } catch (error) {
       console.error("❌ Failed to load stored auth data:", error);
-      // Clear invalid data
-      await authService.logout();
+      setToken(null);
+      setUser(null);
     } finally {
       setLoading(false);
     }
@@ -150,10 +150,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  // Load stored auth data on app start
-  useEffect(() => {
-    loadStoredAuth();
-  }, [loadStoredAuth]);
   // Load stored auth data on app start
   useEffect(() => {
     loadStoredAuth();

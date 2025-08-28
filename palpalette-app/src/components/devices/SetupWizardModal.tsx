@@ -30,11 +30,11 @@ import {
   cloudDoneOutline,
   keypadOutline,
 } from "ionicons/icons";
+import { useHistory } from "react-router";
 
 interface SetupWizardModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onOpenPairingModal: () => void;
 }
 
 enum SetupStep {
@@ -43,15 +43,15 @@ enum SetupStep {
   ConnectWiFi = 2,
   ConfigureDevice = 3,
   WaitOnline = 4,
-  EnterCode = 5,
+  ScanDevices = 5,
   Complete = 6,
 }
 
 const SetupWizardModal: React.FC<SetupWizardModalProps> = ({
   isOpen,
   onClose,
-  onOpenPairingModal,
 }) => {
+  const history = useHistory();
   const [currentStep, setCurrentStep] = useState(SetupStep.Welcome);
 
   const steps = [
@@ -60,7 +60,7 @@ const SetupWizardModal: React.FC<SetupWizardModalProps> = ({
     { title: "Connect WiFi", icon: wifiOutline },
     { title: "Configure", icon: settingsOutline },
     { title: "Wait Online", icon: cloudDoneOutline },
-    { title: "Enter Code", icon: keypadOutline },
+    { title: "Scan for devices", icon: keypadOutline },
     { title: "Complete", icon: checkmarkCircle },
   ];
 
@@ -72,7 +72,7 @@ const SetupWizardModal: React.FC<SetupWizardModalProps> = ({
 
   const handleSkipToCode = () => {
     onClose();
-    onOpenPairingModal();
+    history.push("/devices/discover");
   };
 
   const renderStepContent = () => {
@@ -266,37 +266,26 @@ const SetupWizardModal: React.FC<SetupWizardModalProps> = ({
           </IonCard>
         );
 
-      case SetupStep.EnterCode:
+      case SetupStep.ScanDevices:
         return (
           <IonCard>
             <IonCardHeader>
               <IonCardTitle>
-                <IonIcon icon={keypadOutline} /> Step 5: Enter Pairing Code
+                <IonIcon icon={keypadOutline} /> Step 5: Scan for Devices
               </IonCardTitle>
             </IonCardHeader>
             <IonCardContent>
               <IonText>
                 <p>Your device is now online and ready to be claimed!</p>
                 <p>
-                  <strong>Look for the pairing code:</strong>
+                  <strong>
+                    You can now scan for the device on your local network.
+                  </strong>
                 </p>
-                <ul>
-                  <li>
-                    📱 <strong>LCD Screen:</strong> 6-digit code displayed
-                  </li>
-                  <li>
-                    💡 <strong>LED Blinks:</strong> Count the blinks for each
-                    digit
-                  </li>
-                  <li>
-                    📟 <strong>Serial Monitor:</strong> Code printed if
-                    connected to computer
-                  </li>
-                </ul>
                 <IonNote color="primary">
                   <p>
-                    <strong>💡 Example:</strong> If you see "ABC123" on screen,
-                    enter exactly: ABC123
+                    💡 Make sure you are connected to the same network as the
+                    device.
                   </p>
                 </IonNote>
               </IonText>
@@ -306,9 +295,9 @@ const SetupWizardModal: React.FC<SetupWizardModalProps> = ({
                     <IonButton
                       expand="block"
                       color="primary"
-                      onClick={handleSkipToCode}
+                      onClick={() => history.push("/devices/discover")}
                     >
-                      Enter Pairing Code Now
+                      Scan for Devices now
                     </IonButton>
                   </IonCol>
                 </IonRow>
@@ -429,7 +418,7 @@ const SetupWizardModal: React.FC<SetupWizardModalProps> = ({
                 )}
             </IonCol>
             <IonCol size="6">
-              {currentStep < SetupStep.EnterCode && (
+              {currentStep < SetupStep.ScanDevices && (
                 <IonButton expand="block" onClick={handleNext}>
                   {currentStep === SetupStep.Welcome ? "Start Setup" : "Next"}
                   <IonIcon icon={arrowForward} slot="end" />
@@ -461,7 +450,7 @@ const SetupWizardModal: React.FC<SetupWizardModalProps> = ({
                   size="small"
                   onClick={handleSkipToCode}
                 >
-                  Skip to Pairing Code Entry
+                  Skip to scanning for devices
                 </IonButton>
               </IonCardContent>
             </IonCard>

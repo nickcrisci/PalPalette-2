@@ -64,7 +64,7 @@ const AppContent: React.FC = () => {
   const { isAuthenticated, loading } = useAuth();
 
   if (loading) {
-    return <div>Loading...</div>; // You can replace this with a proper loading component
+    return <div>Loading...</div>;
   }
 
   if (!isAuthenticated) {

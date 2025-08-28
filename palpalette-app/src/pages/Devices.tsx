@@ -27,7 +27,7 @@ import {
   IonRow,
   IonCol,
 } from "@ionic/react";
-import { add, wifi, time, settings, bulb } from "ionicons/icons";
+import { wifi, time, settings, bulb, add } from "ionicons/icons";
 import { useDevices } from "../hooks/useContexts";
 import { Device } from "../services/api";
 import {
@@ -40,12 +40,10 @@ import {
   LightingConfigSimple,
 } from "../components/lighting";
 import { DeviceAuthNotification } from "../components/notifications";
-import { useDeviceNotifications } from "../hooks/useDeviceNotifications";
 
 const Devices: React.FC = () => {
-  const { devices, loading, refreshDevices, resetDevice } = useDevices();
-  const { authenticatingDevices } = useDeviceNotifications();
   const history = useHistory();
+  const { devices, loading, refreshDevices, resetDevice } = useDevices();
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [showPairingModal, setShowPairingModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -246,17 +244,6 @@ const Devices: React.FC = () => {
                     </IonButton>
                   </IonCol>
                 </IonRow>
-                <IonRow>
-                  <IonCol>
-                    <IonButton
-                      expand="block"
-                      fill="outline"
-                      onClick={() => setShowPairingModal(true)}
-                    >
-                      I Have a Pairing Code
-                    </IonButton>
-                  </IonCol>
-                </IonRow>
               </IonGrid>
             </div>
           ) : (
@@ -295,10 +282,6 @@ const Devices: React.FC = () => {
         <SetupWizardModal
           isOpen={showSetupWizard}
           onClose={() => setShowSetupWizard(false)}
-          onOpenPairingModal={() => {
-            setShowSetupWizard(false);
-            setShowPairingModal(true);
-          }}
         />
 
         {selectedDevice && (
