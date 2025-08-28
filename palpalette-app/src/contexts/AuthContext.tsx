@@ -5,9 +5,7 @@ import React, {
   ReactNode,
   useCallback,
 } from "react";
-import axios from "axios";
-import { getApiUrl, API_CONFIG } from "../config/api";
-import { Preferences } from "@capacitor/preferences";
+import { authService } from "../services/AuthService";
 
 export interface User {
   id: string;
@@ -24,8 +22,8 @@ export interface AuthContextType {
     password: string,
     displayName: string
   ) => Promise<boolean>;
-  logout: () => void;
-  refreshToken: () => Promise<boolean>;
+  logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
   isAuthenticated: boolean;
   loading: boolean;
 }
@@ -41,147 +39,72 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const refreshToken = useCallback(async (): Promise<boolean> => {
-    if (!token) {
-      console.log("🔐 No token to refresh");
-      return false;
-    }
-
-    try {
-      setLoading(true);
-      const response = await axios.post(
-        getApiUrl(API_CONFIG.ENDPOINTS.AUTH.REFRESH),
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      const { access_token, user: userData } = response.data;
-
-      // Store new auth data
-      await Preferences.set({ key: "authToken", value: access_token });
-      await Preferences.set({
-        key: "userData",
-        value: JSON.stringify(userData),
-      });
-
-      setToken(access_token);
-      setUser(userData);
-
-      // Update axios default header
-      axios.defaults.headers.common["Authorization"] = `Bearer ${access_token}`;
-
-      console.log("✅ Token refreshed successfully");
-      return true;
-    } catch (error) {
-      console.error("� Token refresh failed:", error);
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  }, [token]);
-
+  /**
+   * Load stored authentication data on app start
+   */
   const loadStoredAuth = useCallback(async () => {
     try {
-      const storedToken = await Preferences.get({ key: "authToken" });
-      const storedUser = await Preferences.get({ key: "userData" });
+      setLoading(true);
+      const storedToken = await authService.getStoredToken();
+      const storedUser = await authService.getStoredUser();
 
-      if (storedToken.value && storedUser.value) {
-        setToken(storedToken.value);
-        setUser(JSON.parse(storedUser.value));
-
-        // Set axios default header for future requests
-        axios.defaults.headers.common[
-          "Authorization"
-        ] = `Bearer ${storedToken.value}`;
-
-        // Immediately try to refresh the token to ensure it's valid
-        setTimeout(() => refreshToken(), 1000);
+      if (storedToken && storedUser) {
+        setToken(storedToken);
+        setUser(storedUser);
+        console.log("✅ Loaded stored authentication data");
       }
     } catch (error) {
-      console.error("Failed to load stored auth data:", error);
+      console.error("❌ Failed to load stored auth data:", error);
+      // Clear invalid data
+      await authService.logout();
     } finally {
       setLoading(false);
     }
-  }, [refreshToken]);
+  }, []);
 
-  // Load stored auth data on app start
-  useEffect(() => {
-    loadStoredAuth();
-  }, [loadStoredAuth]);
-
-  // Set up axios interceptor for automatic logout on 401
-  useEffect(() => {
-    const interceptor = axios.interceptors.response.use(
-      (response) => response,
-      async (error) => {
-        if (error.response?.status === 401 && user && token) {
-          console.log("🔐 Token expired, attempting refresh...");
-          const refreshed = await refreshToken();
-          if (!refreshed) {
-            console.log("🔐 Refresh failed, logging out");
-            logout();
-          }
-        }
-        return Promise.reject(error);
+  /**
+   * Refresh user data from server
+   */
+  const refreshUser = useCallback(async (): Promise<void> => {
+    try {
+      // The auth service will handle token refresh automatically via interceptors
+      // Just reload the stored user data
+      const storedUser = await authService.getStoredUser();
+      if (storedUser) {
+        setUser(storedUser);
       }
-    );
+    } catch (error) {
+      console.error("❌ Failed to refresh user data:", error);
+    }
+  }, []);
 
-    return () => {
-      axios.interceptors.response.eject(interceptor);
-    };
-  }, [user, token, refreshToken]);
-
-  // Set up periodic token validation (every 30 minutes)
-  useEffect(() => {
-    if (!user || !token) return;
-
-    const interval = setInterval(async () => {
-      console.log("🔄 Performing periodic token refresh...");
-      await refreshToken();
-    }, 30 * 60 * 1000); // 30 minutes
-
-    return () => clearInterval(interval);
-  }, [user, token, refreshToken]);
-
+  /**
+   * Login with email and password
+   */
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
       setLoading(true);
-      const response = await axios.post(
-        getApiUrl(API_CONFIG.ENDPOINTS.AUTH.LOGIN),
-        {
-          email,
-          password,
-        }
+      const { token: authToken, user: userData } = await authService.login(
+        email,
+        password
       );
 
-      const { access_token, user: userData } = response.data;
-
-      // Store auth data
-      await Preferences.set({ key: "authToken", value: access_token });
-      await Preferences.set({
-        key: "userData",
-        value: JSON.stringify(userData),
-      });
-
-      setToken(access_token);
+      setToken(authToken);
       setUser(userData);
 
-      // Set axios default header
-      axios.defaults.headers.common["Authorization"] = `Bearer ${access_token}`;
-
+      console.log("✅ Login successful");
       return true;
     } catch (error) {
-      console.error("Login failed:", error);
+      console.error("❌ Login failed:", error);
       return false;
     } finally {
       setLoading(false);
     }
   };
 
+  /**
+   * Register new user
+   */
   const register = async (
     email: string,
     password: string,
@@ -189,54 +112,52 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   ): Promise<boolean> => {
     try {
       setLoading(true);
-      const response = await axios.post(
-        getApiUrl(API_CONFIG.ENDPOINTS.AUTH.REGISTER),
-        {
-          email,
-          password,
-          displayName,
-        }
+      const { token: authToken, user: userData } = await authService.register(
+        email,
+        password,
+        displayName
       );
 
-      const { access_token, user: userData } = response.data;
-
-      // Store auth data
-      await Preferences.set({ key: "authToken", value: access_token });
-      await Preferences.set({
-        key: "userData",
-        value: JSON.stringify(userData),
-      });
-
-      setToken(access_token);
+      setToken(authToken);
       setUser(userData);
 
-      // Set axios default header
-      axios.defaults.headers.common["Authorization"] = `Bearer ${access_token}`;
-
+      console.log("✅ Registration successful");
       return true;
     } catch (error) {
-      console.error("Registration failed:", error);
+      console.error("❌ Registration failed:", error);
       return false;
     } finally {
       setLoading(false);
     }
   };
 
-  const logout = async () => {
+  /**
+   * Logout user
+   */
+  const logout = async (): Promise<void> => {
     try {
-      // Clear stored auth data
-      await Preferences.remove({ key: "authToken" });
-      await Preferences.remove({ key: "userData" });
+      setLoading(true);
+      await authService.logout();
 
       setToken(null);
       setUser(null);
 
-      // Remove axios default header
-      delete axios.defaults.headers.common["Authorization"];
+      console.log("✅ Logout successful");
     } catch (error) {
-      console.error("Logout failed:", error);
+      console.error("❌ Logout failed:", error);
+    } finally {
+      setLoading(false);
     }
   };
+
+  // Load stored auth data on app start
+  useEffect(() => {
+    loadStoredAuth();
+  }, [loadStoredAuth]);
+  // Load stored auth data on app start
+  useEffect(() => {
+    loadStoredAuth();
+  }, [loadStoredAuth]);
 
   const value: AuthContextType = {
     user,
@@ -244,7 +165,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     login,
     register,
     logout,
-    refreshToken,
+    refreshUser,
     isAuthenticated: !!user && !!token,
     loading,
   };

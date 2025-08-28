@@ -39,12 +39,14 @@
         "socket.io": "^4.8.1",
         "sqlite3": "^5.1.7",
         "typeorm": "^0.3.25",
+        "uuid": "^10.0.0",
         "ws": "^8.18.3"
     },
     "devDependencies": {
         "@nestjs/cli": "^11.0.7",
         "@types/jest": "^30.0.0",
         "@types/supertest": "^6.0.3",
+        "@types/uuid": "^10.0.0",
         "jest": "^30.0.5",
         "nodemon": "^3.1.10",
         "supertest": "^7.1.4",
