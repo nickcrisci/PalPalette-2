@@ -1,13 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { useHistory } from "react-router-dom";
+
 import {
   IonContent,
   IonHeader,
   IonPage,
   IonTitle,
   IonToolbar,
-  IonFab,
-  IonFabButton,
   IonIcon,
   IonCard,
   IonCardContent,
@@ -27,7 +25,7 @@ import {
   IonRow,
   IonCol,
 } from "@ionic/react";
-import { add, wifi, time, settings, bulb } from "ionicons/icons";
+import { wifi, time, settings, bulb } from "ionicons/icons";
 import { useDevices } from "../hooks/useContexts";
 import { Device } from "../services/api";
 import {
@@ -40,12 +38,9 @@ import {
   LightingConfigSimple,
 } from "../components/lighting";
 import { DeviceAuthNotification } from "../components/notifications";
-import { useDeviceNotifications } from "../hooks/useDeviceNotifications";
 
 const Devices: React.FC = () => {
   const { devices, loading, refreshDevices, resetDevice } = useDevices();
-  const { authenticatingDevices } = useDeviceNotifications();
-  const history = useHistory();
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [showPairingModal, setShowPairingModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -246,17 +241,6 @@ const Devices: React.FC = () => {
                     </IonButton>
                   </IonCol>
                 </IonRow>
-                <IonRow>
-                  <IonCol>
-                    <IonButton
-                      expand="block"
-                      fill="outline"
-                      onClick={() => setShowPairingModal(true)}
-                    >
-                      I Have a Pairing Code
-                    </IonButton>
-                  </IonCol>
-                </IonRow>
               </IonGrid>
             </div>
           ) : (
@@ -273,11 +257,11 @@ const Devices: React.FC = () => {
           )}
         </div>
 
-        <IonFab vertical="bottom" horizontal="end" slot="fixed">
+        {/* <IonFab vertical="bottom" horizontal="end" slot="fixed">
           <IonFabButton onClick={() => history.push("/devices/discover")}>
             <IonIcon icon={add} />
           </IonFabButton>
-        </IonFab>
+        </IonFab> */}
 
         <PairingCodeModal
           isOpen={showPairingModal}
@@ -295,10 +279,6 @@ const Devices: React.FC = () => {
         <SetupWizardModal
           isOpen={showSetupWizard}
           onClose={() => setShowSetupWizard(false)}
-          onOpenPairingModal={() => {
-            setShowSetupWizard(false);
-            setShowPairingModal(true);
-          }}
         />
 
         {selectedDevice && (

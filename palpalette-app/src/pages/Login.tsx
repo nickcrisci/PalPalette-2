@@ -48,6 +48,13 @@ const Login: React.FC = () => {
       if (!success) {
         setToastMessage(isLogin ? "Login failed" : "Registration failed");
         setShowToast(true);
+      } else {
+        setShowToast(false);
+        console.log("Should show toast");
+        setToastMessage(
+          isLogin ? "Login successful" : "Registration successful"
+        );
+        setShowToast(true);
       }
     } catch {
       setToastMessage("An error occurred");

@@ -128,59 +128,59 @@ export class DevicesService {
     return /^[A-Z0-9]{6}$/.test(code.toUpperCase());
   }
 
-  /**
-   * LEGACY: Claim a device by ID (DEPRECATED - Remove after migration)
-   */
-  static async claimDevice(
-    deviceId: string,
-    deviceName: string
-  ): Promise<Device> {
-    try {
-      const headers = await this.getAuthHeader();
-      const response = await axios.post(
-        getApiUrl("/devices/claim"),
-        { deviceId, name: deviceName },
-        { headers }
-      );
-      return response.data;
-    } catch (error) {
-      console.error("Error claiming device:", error);
-      throw error;
-    }
-  }
+  // /**
+  //  * LEGACY: Claim a device by ID (DEPRECATED - Remove after migration)
+  //  */
+  // static async claimDevice(
+  //   deviceId: string,
+  //   deviceName: string
+  // ): Promise<Device> {
+  //   try {
+  //     const headers = await this.getAuthHeader();
+  //     const response = await axios.post(
+  //       getApiUrl("/devices/claim"),
+  //       { deviceId, name: deviceName },
+  //       { headers }
+  //     );
+  //     return response.data;
+  //   } catch (error) {
+  //     console.error("Error claiming device:", error);
+  //     throw error;
+  //   }
+  // }
 
-  /**
-   * LEGACY: Mark device setup as complete (DEPRECATED)
-   */
-  static async markSetupComplete(deviceId: string): Promise<Device> {
-    try {
-      const headers = await this.getAuthHeader();
-      const response = await axios.post(
-        getApiUrl("/devices/setup-complete"),
-        { deviceId },
-        { headers }
-      );
-      return response.data;
-    } catch (error) {
-      console.error("Error marking setup complete:", error);
-      throw error;
-    }
-  }
+  // /**
+  //  * LEGACY: Mark device setup as complete (DEPRECATED)
+  //  */
+  // static async markSetupComplete(deviceId: string): Promise<Device> {
+  //   try {
+  //     const headers = await this.getAuthHeader();
+  //     const response = await axios.post(
+  //       getApiUrl("/devices/setup-complete"),
+  //       { deviceId },
+  //       { headers }
+  //     );
+  //     return response.data;
+  //   } catch (error) {
+  //     console.error("Error marking setup complete:", error);
+  //     throw error;
+  //   }
+  // }
 
-  /**
-   * LEGACY: Get device setup status (DEPRECATED)
-   */
-  static async getSetupStatus(deviceId: string): Promise<SetupStatus> {
-    try {
-      const headers = await this.getAuthHeader();
-      const response = await axios.get(
-        getApiUrl(`/devices/setup-status/${deviceId}`),
-        { headers }
-      );
-      return response.data;
-    } catch (error) {
-      console.error("Error getting setup status:", error);
-      throw error;
-    }
-  }
+  // /**
+  //  * LEGACY: Get device setup status (DEPRECATED)
+  //  */
+  // static async getSetupStatus(deviceId: string): Promise<SetupStatus> {
+  //   try {
+  //     const headers = await this.getAuthHeader();
+  //     const response = await axios.get(
+  //       getApiUrl(`/devices/setup-status/${deviceId}`),
+  //       { headers }
+  //     );
+  //     return response.data;
+  //   } catch (error) {
+  //     console.error("Error getting setup status:", error);
+  //     throw error;
+  //   }
+  // }
 }
