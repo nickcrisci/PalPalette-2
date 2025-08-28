@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from "react";
-
+import { useHistory } from "react-router-dom";
 import {
   IonContent,
   IonHeader,
   IonPage,
   IonTitle,
   IonToolbar,
+  IonFab,
+  IonFabButton,
   IonIcon,
   IonCard,
   IonCardContent,
@@ -25,7 +27,7 @@ import {
   IonRow,
   IonCol,
 } from "@ionic/react";
-import { wifi, time, settings, bulb } from "ionicons/icons";
+import { wifi, time, settings, bulb, add } from "ionicons/icons";
 import { useDevices } from "../hooks/useContexts";
 import { Device } from "../services/api";
 import {
@@ -40,6 +42,7 @@ import {
 import { DeviceAuthNotification } from "../components/notifications";
 
 const Devices: React.FC = () => {
+  const history = useHistory();
   const { devices, loading, refreshDevices, resetDevice } = useDevices();
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [showPairingModal, setShowPairingModal] = useState(false);
@@ -257,11 +260,11 @@ const Devices: React.FC = () => {
           )}
         </div>
 
-        {/* <IonFab vertical="bottom" horizontal="end" slot="fixed">
+        <IonFab vertical="bottom" horizontal="end" slot="fixed">
           <IonFabButton onClick={() => history.push("/devices/discover")}>
             <IonIcon icon={add} />
           </IonFabButton>
-        </IonFab> */}
+        </IonFab>
 
         <PairingCodeModal
           isOpen={showPairingModal}
