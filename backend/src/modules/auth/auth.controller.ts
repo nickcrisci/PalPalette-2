@@ -16,6 +16,7 @@ import {
 import { Public } from "../../common/decorators/public.decorator";
 import { AuthService } from "./auth.service";
 import { LoginUserDto } from "../users/dto/login-user.dto";
+import { LoginRequestDto } from "./dto/login-request.dto";
 import { RegisterUserDto } from "../users/dto/register-user.dto";
 import { UsersService } from "../users/users.service";
 import { JwtAuthGuard } from "./jwt-auth.guard";
@@ -43,21 +44,8 @@ export class AuthController {
   @ApiOperation({ summary: "Login user and get access tokens" })
   @ApiResponse({ status: 200, description: "Login successful" })
   @ApiResponse({ status: 401, description: "Invalid credentials" })
-  @ApiBody({
-    schema: {
-      allOf: [
-        { $ref: "#/components/schemas/LoginUserDto" },
-        {
-          type: "object",
-          properties: {
-            device_name: { type: "string" },
-          },
-        },
-      ],
-    },
-  })
-  async login(@Body() loginUserDto: LoginUserDto & { device_name?: string }) {
-    return this.authService.login(loginUserDto);
+  async login(@Body() loginRequestDto: LoginRequestDto) {
+    return this.authService.login(loginRequestDto);
   }
 
   @Public()

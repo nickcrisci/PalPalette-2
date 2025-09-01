@@ -40,8 +40,9 @@ import {
   LightingSystemConfig,
   LightingSystemStatus,
   SupportedSystemsResponse,
+  LightingConfig,
 } from "../../services/LightingSystemService";
-import { LightingConfig } from "../../services/api";
+import { LightingSystemConfigDto } from "../../services/openapi/models/LightingSystemConfigDto";
 import { useLighting, useToast, useLoading } from "../../hooks";
 
 interface CustomConfig {
@@ -77,7 +78,7 @@ const LightingConfigModal: React.FC<LightingConfigModalProps> = ({
   const [currentStatus, setCurrentStatus] =
     useState<LightingSystemStatus | null>(null);
   const [config, setConfig] = useState<LightingSystemConfig>({
-    lightingSystemType: "ws2812",
+    lightingSystemType: LightingSystemConfigDto.lightingSystemType.WS2812,
     lightingHostAddress: "",
     lightingPort: 80,
     lightingAuthToken: "",
@@ -103,7 +104,7 @@ const LightingConfigModal: React.FC<LightingConfigModalProps> = ({
         ),
       ]);
 
-      setSupportedSystems(systems);
+      setSupportedSystems(systems as SupportedSystemsResponse);
       setCurrentStatus(status);
 
       // If device has existing config, populate form

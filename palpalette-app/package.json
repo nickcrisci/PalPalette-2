@@ -52,7 +52,6 @@
     "@types/react-router": "^5.1.20",
     "@types/react-router-dom": "^5.3.3",
     "@types/socket.io-client": "^1.4.36",
-    "axios": "^1.11.0",
     "colorthief": "^2.6.0",
     "ionicons": "^7.4.0",
     "react": "19.0.0",

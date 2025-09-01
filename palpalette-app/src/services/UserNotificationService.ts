@@ -1,4 +1,3 @@
-import axios from "axios";
 import { getApiUrl } from "../config/api";
 import { Preferences } from "@capacitor/preferences";
 

@@ -3,6 +3,7 @@ import { AppModule } from "./src/app.module";
 import { ValidationPipe } from "@nestjs/common";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
 import * as dotenv from "dotenv";
+import metadata from "src/metadata";
 dotenv.config();
 
 async function bootstrap() {
@@ -46,6 +47,8 @@ async function bootstrap() {
     .setVersion("1.0")
     .addBearerAuth()
     .build();
+
+  await SwaggerModule.loadPluginMetadata(metadata); // <-- here
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup("api", app, document);
 

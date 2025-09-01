@@ -1,92 +1,44 @@
-import axios from "axios";
-import { getApiUrl } from "../config/api";
-import { Preferences } from "@capacitor/preferences";
+import type { LightingSystemConfigDto } from "./openapi/models/LightingSystemConfigDto";
+import type { LightingSystemStatusDto } from "./openapi/models/LightingSystemStatusDto";
+import type { UpdateLightingSystemDto } from "./openapi/models/UpdateLightingSystemDto";
+import type { Device } from "./openapi/models/Device";
 
-export type LightingSystemType = "nanoleaf" | "wled" | "ws2812";
+// Re-export types for convenience
+export type LightingSystemConfig = LightingSystemConfigDto;
+export type LightingSystemStatus = LightingSystemStatusDto;
+export type LightingConfig = LightingSystemConfigDto;
+export type LightingSystemType = string;
 
-export interface LightingSystemConfig {
-  lightingSystemType: LightingSystemType;
-  lightingHostAddress?: string;
-  lightingPort?: number;
-  lightingAuthToken?: string;
-  lightingCustomConfig?: Record<string, unknown>;
-}
-
-export interface LightingSystemStatus {
-  lightingSystemType: string;
-  lightingHostAddress?: string;
-  lightingPort?: number;
-  lightingSystemConfigured: boolean;
-  lightingStatus: "unknown" | "working" | "error" | "authentication_required";
-  lightingLastTestAt?: string;
-  requiresAuthentication: boolean;
-  capabilities?: LightingSystemCapabilities;
-}
-
-export interface LightingSystemCapabilities {
-  maxPanels?: number;
-  maxLeds?: number;
-  animations?: string[];
-  segments?: boolean;
-  effects?: boolean;
-  brightness?: boolean;
-  networkRequired?: boolean;
-  authentication?: boolean;
-}
-
+// Supported systems response type
 export interface SupportedSystemsResponse {
   systems: string[];
-  capabilities: {
-    [key: string]: Record<string, unknown>;
-  };
 }
 
-export interface DeviceLightingSystem extends LightingSystemStatus {
-  deviceId: string;
-  deviceName: string;
-}
-
+// Test result type
 export interface TestResult {
-  testRequested: boolean;
-  deviceConnected: boolean;
+  success: boolean;
+  message: string;
+  details?: Record<string, unknown>;
+  testRequested?: boolean;
+  deviceConnected?: boolean;
 }
 
-export interface Device {
-  id: string;
-  name: string;
-  type: string;
-  status: string;
-  macAddress?: string;
-  ipAddress?: string;
-  isOnline: boolean;
-  isProvisioned: boolean;
-  user?: {
-    id: string;
-    email: string;
-    displayName: string;
-  };
-  pairingCode?: string;
-  pairingCodeExpiresAt?: string;
-  lastSeenAt?: string;
-  createdAt: string;
-  updatedAt: string;
+// Device lighting system type
+export interface DeviceLightingSystem {
+  deviceId: string;
+  lightingSystem: LightingSystemConfigDto;
 }
 
 export class LightingSystemService {
-  private static async getAuthHeader() {
-    const { value: token } = await Preferences.get({ key: "authToken" });
-    return token ? { Authorization: `Bearer ${token}` } : {};
-  }
-
   /**
    * Get supported lighting systems and their capabilities
    */
-  static async getSupportedSystems(): Promise<SupportedSystemsResponse> {
+  static async getSupportedSystems(): Promise<unknown> {
     try {
-      const response = await axios.get(
-        getApiUrl("/devices/lighting/supported-systems")
+      const { DevicesService } = await import(
+        "./openapi/services/DevicesService"
       );
-      return response.data;
+      return await DevicesService.devicesControllerGetSupportedLightingSystems();
     } catch (error) {
       console.error("Error fetching supported systems:", error);
       throw error;
@@ -100,10 +52,12 @@ export class LightingSystemService {
     systemType: string
   ): Promise<Record<string, unknown>> {
     try {
-      const response = await axios.get(
-        getApiUrl(`/devices/lighting/${systemType}/default-config`)
+      const { DevicesService } = await import(
+        "./openapi/services/DevicesService"
       );
-      return response.data;
+      return await DevicesService.devicesControllerGetDefaultLightingConfig(
+        systemType
+      );
     } catch (error) {
       console.error("Error fetching default config:", error);
       throw error;
@@ -115,16 +69,16 @@ export class LightingSystemService {
    */
   static async configureLightingSystem(
     deviceId: string,
-    config: LightingSystemConfig
+    config: LightingSystemConfigDto
   ): Promise<Device> {
     try {
-      const headers = await this.getAuthHeader();
-      const response = await axios.post(
-        getApiUrl(`/devices/${deviceId}/lighting/configure`),
-        config,
-        { headers }
+      const { DevicesService } = await import(
+        "./openapi/services/DevicesService"
       );
-      return response.data;
+      return await DevicesService.devicesControllerConfigureLightingSystem(
+        deviceId,
+        config
+      );
     } catch (error) {
       console.error("Error configuring lighting system:", error);
       throw error;
@@ -136,16 +90,16 @@ export class LightingSystemService {
    */
   static async updateLightingSystem(
     deviceId: string,
-    updates: Partial<LightingSystemConfig>
-  ): Promise<Device> {
+    updates: UpdateLightingSystemDto
+  ): Promise<unknown> {
     try {
-      const headers = await this.getAuthHeader();
-      const response = await axios.patch(
-        getApiUrl(`/devices/${deviceId}/lighting`),
-        updates,
-        { headers }
+      const { DevicesService } = await import(
+        "./openapi/services/DevicesService"
       );
-      return response.data;
+      return await DevicesService.devicesControllerUpdateLightingSystem(
+        deviceId,
+        updates
+      );
     } catch (error) {
       console.error("Error updating lighting system:", error);
       throw error;
@@ -157,14 +111,14 @@ export class LightingSystemService {
    */
   static async getLightingSystemStatus(
     deviceId: string
-  ): Promise<LightingSystemStatus> {
+  ): Promise<LightingSystemStatusDto> {
     try {
-      const headers = await this.getAuthHeader();
-      const response = await axios.get(
-        getApiUrl(`/devices/${deviceId}/lighting/status`),
-        { headers }
+      const { DevicesService } = await import(
+        "./openapi/services/DevicesService"
       );
-      return response.data;
+      return await DevicesService.devicesControllerGetLightingSystemStatus(
+        deviceId
+      );
     } catch (error) {
       console.error("Error fetching lighting status:", error);
       throw error;
@@ -176,13 +130,10 @@ export class LightingSystemService {
    */
   static async testLightingSystem(deviceId: string): Promise<TestResult> {
     try {
-      const headers = await this.getAuthHeader();
-      const response = await axios.post(
-        getApiUrl(`/devices/${deviceId}/lighting/test`),
-        {},
-        { headers }
+      const { DevicesService } = await import(
+        "./openapi/services/DevicesService"
       );
-      return response.data;
+      return await DevicesService.devicesControllerTestLightingSystem(deviceId);
     } catch (error) {
       console.error("Error testing lighting system:", error);
       throw error;
@@ -194,12 +145,12 @@ export class LightingSystemService {
    */
   static async resetLightingSystem(deviceId: string): Promise<Device> {
     try {
-      const headers = await this.getAuthHeader();
-      const response = await axios.delete(
-        getApiUrl(`/devices/${deviceId}/lighting`),
-        { headers }
+      const { DevicesService } = await import(
+        "./openapi/services/DevicesService"
       );
-      return response.data;
+      return await DevicesService.devicesControllerResetLightingSystem(
+        deviceId
+      );
     } catch (error) {
       console.error("Error resetting lighting system:", error);
       throw error;
@@ -209,14 +160,14 @@ export class LightingSystemService {
   /**
    * Get lighting systems for all user devices
    */
-  static async getAllDevicesLightingSystems(): Promise<DeviceLightingSystem[]> {
+  static async getAllDevicesLightingSystems(): Promise<
+    LightingSystemStatusDto[]
+  > {
     try {
-      const headers = await this.getAuthHeader();
-      const response = await axios.get(
-        getApiUrl("/devices/my-devices/lighting-systems"),
-        { headers }
+      const { DevicesService } = await import(
+        "./openapi/services/DevicesService"
       );
-      return response.data;
+      return await DevicesService.devicesControllerGetMyDevicesLightingSystems();
     } catch (error) {
       console.error("Error fetching all lighting systems:", error);
       throw error;

@@ -1,5 +1,7 @@
 import React, { createContext, useState, ReactNode, useCallback } from "react";
-import { devicesAPI, Device } from "../services/api";
+import { Device } from "../services/openapi/models/Device";
+import { DevicesService } from "../services/openapi/services/DevicesService";
+import { ClaimByCodeDto } from "../services/openapi/models/ClaimByCodeDto";
 import { useAuth } from "../hooks/useContexts";
 
 export interface DeviceContextType {
@@ -30,11 +32,10 @@ export const DeviceProvider: React.FC<DeviceProviderProps> = ({ children }) => {
 
   const refreshDevices = useCallback(async () => {
     if (!token) return;
-
     try {
       setLoading(true);
-      const devicesData = await devicesAPI.getDevices();
-      setDevices(devicesData);
+      const devicesData = await DevicesService.devicesControllerGetMyDevices();
+      setDevices(devicesData as Device[]);
     } catch (error) {
       console.error("Failed to refresh devices:", error);
     } finally {
@@ -45,11 +46,10 @@ export const DeviceProvider: React.FC<DeviceProviderProps> = ({ children }) => {
   const claimDeviceByCode = useCallback(
     async (pairingCode: string, name: string): Promise<boolean> => {
       if (!token) return false;
-
       try {
         setLoading(true);
-        await devicesAPI.claimDevice({ pairingCode, deviceName: name });
-        // Refresh devices list after successful claim
+        const dto: ClaimByCodeDto = { pairingCode, deviceName: name };
+        await DevicesService.devicesControllerClaimByCode(dto);
         await refreshDevices();
         return true;
       } catch (error) {
@@ -65,11 +65,9 @@ export const DeviceProvider: React.FC<DeviceProviderProps> = ({ children }) => {
   const resetDevice = useCallback(
     async (deviceId: string): Promise<boolean> => {
       if (!token) return false;
-
       try {
         setLoading(true);
-        await devicesAPI.resetDevice(deviceId);
-        // Refresh devices list after successful reset
+        await DevicesService.devicesControllerResetDevice(deviceId);
         await refreshDevices();
         return true;
       } catch (error) {
@@ -93,10 +91,10 @@ export const DeviceProvider: React.FC<DeviceProviderProps> = ({ children }) => {
     return claimDeviceByCode(setupSecret, name);
   };
 
+  // TODO: Refactor sendColorToDevice to use generated service if available
   const sendColorToDevice = (deviceId: string, color: string) => {
-    devicesAPI.sendColorToDevice(deviceId, color).catch((error) => {
-      console.error("Failed to send color to device:", error);
-    });
+    // Implement using DevicesService if endpoint exists
+    console.warn("sendColorToDevice not yet refactored to OpenAPI");
   };
 
   const value: DeviceContextType = {

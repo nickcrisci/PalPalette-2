@@ -80,18 +80,13 @@ const PairingCodeModal: React.FC<PairingCodeModalProps> = ({
 
     try {
       const success = await claimDevice(cleanCode, deviceName.trim());
-
       if (success) {
         setResult({
           success: true,
           message: "Device claimed successfully!",
         });
-
-        // Clear form
         setPairingCode("");
         setDeviceName("");
-
-        // Notify parent and close modal
         setTimeout(() => {
           onDeviceClaimed();
           onClose();
@@ -105,24 +100,18 @@ const PairingCodeModal: React.FC<PairingCodeModalProps> = ({
             "Failed to claim device. Please check your pairing code.",
         });
       }
-    } catch (error: unknown) {
+    } catch (error: any) {
       let message = "Failed to claim device";
-
-      const axiosError = error as {
-        response?: { status?: number; data?: { message?: string } };
-      };
-
-      if (axiosError.response?.status === 404) {
+      if (error?.status === 404) {
         message = "Invalid pairing code. Please check and try again.";
-      } else if (axiosError.response?.status === 400) {
+      } else if (error?.status === 400) {
         message =
           "Pairing code has expired. Please get a new code from your device.";
-      } else if (axiosError.response?.status === 409) {
+      } else if (error?.status === 409) {
         message = "This device is already claimed by another user.";
-      } else if (axiosError.response?.data?.message) {
-        message = axiosError.response.data.message;
+      } else if (error?.message) {
+        message = error.message;
       }
-
       setResult({
         success: false,
         message,

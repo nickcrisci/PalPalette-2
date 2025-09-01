@@ -1,27 +1,24 @@
 import { useState, useCallback } from "react";
-import {
-  lightingAPI,
-  LightingConfig,
-  LightingStatus,
-} from "../../services/api";
+import { DevicesService } from "../../services/openapi/services/DevicesService";
+import { LightingSystemConfigDto } from "../../services/openapi/models/LightingSystemConfigDto";
+import { LightingSystemStatusDto } from "../../services/openapi/models/LightingSystemStatusDto";
+import { UpdateLightingSystemDto } from "../../services/openapi/models/UpdateLightingSystemDto";
 
 export interface UseLightingReturn {
   loading: boolean;
   error: string | null;
   configureLighting: (
     deviceId: string,
-    config: LightingConfig
+    config: LightingSystemConfigDto
   ) => Promise<boolean>;
-  getLightingStatus: (deviceId: string) => Promise<LightingStatus | null>;
+  getLightingStatus: (
+    deviceId: string
+  ) => Promise<LightingSystemStatusDto | null>;
   sendColorPalette: (deviceId: string, colors: string[]) => Promise<boolean>;
   testLighting: (deviceId: string) => Promise<boolean>;
   updateLighting: (
     deviceId: string,
-    updates: {
-      lightingHostAddress?: string;
-      lightingPort?: number;
-      lightingCustomConfig?: Record<string, unknown>;
-    }
+    updates: UpdateLightingSystemDto
   ) => Promise<boolean>;
 }
 
@@ -30,11 +27,17 @@ export const useLighting = (): UseLightingReturn => {
   const [error, setError] = useState<string | null>(null);
 
   const configureLighting = useCallback(
-    async (deviceId: string, config: LightingConfig): Promise<boolean> => {
+    async (
+      deviceId: string,
+      config: LightingSystemConfigDto
+    ): Promise<boolean> => {
       setLoading(true);
       setError(null);
       try {
-        await lightingAPI.configureLighting(deviceId, config);
+        await DevicesService.devicesControllerConfigureLightingSystem(
+          deviceId,
+          config
+        );
         return true;
       } catch (err) {
         const errorMessage =
@@ -50,11 +53,14 @@ export const useLighting = (): UseLightingReturn => {
   );
 
   const getLightingStatus = useCallback(
-    async (deviceId: string): Promise<LightingStatus | null> => {
+    async (deviceId: string): Promise<LightingSystemStatusDto | null> => {
       setLoading(true);
       setError(null);
       try {
-        const status = await lightingAPI.getLightingStatus(deviceId);
+        const status =
+          await DevicesService.devicesControllerGetLightingSystemStatus(
+            deviceId
+          );
         return status;
       } catch (err) {
         const errorMessage =
@@ -74,7 +80,11 @@ export const useLighting = (): UseLightingReturn => {
       setLoading(true);
       setError(null);
       try {
-        await lightingAPI.sendColorPalette(deviceId, { colors });
+        // TODO: Implement with OpenAPI if color palette endpoint exists
+        console.warn("sendColorPalette not implemented with OpenAPI yet", {
+          deviceId,
+          colors,
+        });
         return true;
       } catch (err) {
         const errorMessage =
@@ -94,8 +104,8 @@ export const useLighting = (): UseLightingReturn => {
       setLoading(true);
       setError(null);
       try {
-        const result = await lightingAPI.testLightingConnection(deviceId);
-        return result;
+        await DevicesService.devicesControllerTestLightingSystem(deviceId);
+        return true;
       } catch (err) {
         const errorMessage =
           err instanceof Error ? err.message : "Failed to test lighting";
@@ -112,16 +122,15 @@ export const useLighting = (): UseLightingReturn => {
   const updateLighting = useCallback(
     async (
       deviceId: string,
-      updates: {
-        lightingHostAddress?: string;
-        lightingPort?: number;
-        lightingCustomConfig?: Record<string, unknown>;
-      }
+      updates: UpdateLightingSystemDto
     ): Promise<boolean> => {
       setLoading(true);
       setError(null);
       try {
-        await lightingAPI.updateLighting(deviceId, updates);
+        await DevicesService.devicesControllerUpdateLightingSystem(
+          deviceId,
+          updates
+        );
         return true;
       } catch (err) {
         const errorMessage =

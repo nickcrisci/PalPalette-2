@@ -26,7 +26,7 @@ import {
   IonSegmentButton,
 } from "@ionic/react";
 import { add, wifi, time, settings, bulb } from "ionicons/icons";
-import { Device } from "../services/api";
+import { Device } from "../services/openapi/models/Device";
 import { useDeveloperMode } from "../hooks/useDeveloperMode";
 import {
   PairingCodeModal,
@@ -40,6 +40,7 @@ import {
 import { DeviceAuthNotification } from "../components/notifications";
 import { useDeviceManagement } from "../hooks/device";
 import { useWebSocket } from "../hooks";
+import { DeviceStatusEvent } from "../services/WebSocketService";
 
 interface DeviceManagementProps {
   defaultView?: "devices" | "lighting" | "both";
@@ -397,10 +398,6 @@ const DeviceManagement: React.FC<DeviceManagementProps> = ({
         <SetupWizardModal
           isOpen={showSetupWizard}
           onClose={() => setShowSetupWizard(false)}
-          onOpenPairingModal={() => {
-            setShowSetupWizard(false);
-            setShowPairingModal(true);
-          }}
         />
 
         {selectedDevice && (

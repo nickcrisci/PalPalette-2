@@ -22,9 +22,9 @@ import {
 import { close, checkmark } from "ionicons/icons";
 import {
   LightingSystemService,
-  LightingSystemType,
   LightingSystemConfig,
 } from "../../services/LightingSystemService";
+import { LightingSystemConfigDto } from "../../services/openapi/models/LightingSystemConfigDto";
 import { DeviceAuthNotification } from "../notifications";
 
 interface LightingConfigSimpleProps {
@@ -42,7 +42,9 @@ const LightingConfigSimple: React.FC<LightingConfigSimpleProps> = ({
   onClose,
   onConfigured,
 }) => {
-  const [systemType, setSystemType] = useState<LightingSystemType | "">("");
+  const [systemType, setSystemType] = useState<
+    LightingSystemConfigDto.lightingSystemType | ""
+  >("");
   const [ipAddress, setIpAddress] = useState("");
   const [port, setPort] = useState("80");
   const [ledPin, setLedPin] = useState("2"); // Default GPIO pin for WS2812
@@ -92,7 +94,8 @@ const LightingConfigSimple: React.FC<LightingConfigSimpleProps> = ({
 
   const buildConfiguration = (): LightingSystemConfig => {
     const config: LightingSystemConfig = {
-      lightingSystemType: systemType as LightingSystemType,
+      lightingSystemType:
+        systemType as LightingSystemConfigDto.lightingSystemType,
     };
 
     if (systemType === "wled") {
@@ -194,7 +197,9 @@ const LightingConfigSimple: React.FC<LightingConfigSimpleProps> = ({
     setShowAlert(true);
   };
 
-  const getSystemDescription = (type: LightingSystemType) => {
+  const getSystemDescription = (
+    type: LightingSystemConfigDto.lightingSystemType
+  ) => {
     switch (type) {
       case "nanoleaf":
         return "Nanoleaf panels with automatic discovery and authentication";
@@ -207,7 +212,9 @@ const LightingConfigSimple: React.FC<LightingConfigSimpleProps> = ({
     }
   };
 
-  const getRequiredFields = (type: LightingSystemType) => {
+  const getRequiredFields = (
+    type: LightingSystemConfigDto.lightingSystemType
+  ) => {
     switch (type) {
       case "nanoleaf":
         return ["Automatic discovery"]; // No manual fields needed
@@ -253,7 +260,9 @@ const LightingConfigSimple: React.FC<LightingConfigSimpleProps> = ({
               </IonSelect>
               {systemType && (
                 <IonNote>
-                  {getSystemDescription(systemType as LightingSystemType)}
+                  {getSystemDescription(
+                    systemType as LightingSystemConfigDto.lightingSystemType
+                  )}
                 </IonNote>
               )}
             </IonItem>
@@ -343,9 +352,9 @@ const LightingConfigSimple: React.FC<LightingConfigSimpleProps> = ({
                   <IonLabel>
                     <h3>Required Fields</h3>
                     <IonNote>
-                      {getRequiredFields(systemType as LightingSystemType).join(
-                        ", "
-                      )}
+                      {getRequiredFields(
+                        systemType as LightingSystemConfigDto.lightingSystemType
+                      ).join(", ")}
                     </IonNote>
                   </IonLabel>
                 </IonItem>

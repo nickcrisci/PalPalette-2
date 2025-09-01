@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from "react";
-import { WebSocketService } from "../services/WebSocketService";
 import {
-  UserNotification,
+  WebSocketService,
   DeviceStatusEvent,
   LightingSystemStatusEvent,
-} from "../services/api/types";
+} from "../services/WebSocketService";
+import { UserNotificationDto } from "../services/openapi/models/UserNotificationDto";
 import { API_CONFIG } from "../config/api";
 
 export interface UseWebSocketOptions {
@@ -13,7 +13,7 @@ export interface UseWebSocketOptions {
 
 export interface WebSocketHookReturn {
   isConnected: boolean;
-  userNotifications: UserNotification[];
+  userNotifications: UserNotificationDto[];
   deviceStatuses: Map<string, DeviceStatusEvent>;
   lightingStatuses: Map<string, LightingSystemStatusEvent>;
   connect: () => void;
@@ -27,7 +27,7 @@ let globalWebSocketService: WebSocketService | null = null;
 
 // Global state for all hooks to share
 let globalIsConnected = false;
-let globalUserNotifications: UserNotification[] = [];
+let globalUserNotifications: UserNotificationDto[] = [];
 const globalDeviceStatuses = new Map<string, DeviceStatusEvent>();
 const globalLightingStatuses = new Map<string, LightingSystemStatusEvent>();
 
@@ -61,7 +61,7 @@ function initializeGlobalWebSocket() {
 
   globalWebSocketService.on(
     "userActionRequired",
-    (notification: UserNotification) => {
+    (notification: UserNotificationDto) => {
       console.log("🔔 New user notification:", notification);
       globalUserNotifications = [notification, ...globalUserNotifications];
       notifySubscribers();
@@ -150,9 +150,13 @@ export const useWebSocket = (
 
   const markNotificationRead = (index: number) => {
     if (globalUserNotifications[index]) {
+      // Mark as read by updating additional data
       globalUserNotifications[index] = {
         ...globalUserNotifications[index],
-        isRead: true,
+        additionalData: {
+          ...globalUserNotifications[index].additionalData,
+          isRead: true,
+        },
       };
       notifySubscribers();
     }

@@ -14,7 +14,7 @@ export function configureApiClient() {
   // Set up token resolver for authentication
   OpenAPI.TOKEN = async () => {
     // Get token from localStorage or your preferred storage
-    const token = localStorage.getItem("access_token");
+    const token = localStorage.getItem("auth_token");
     return token || "";
   };
 }
@@ -24,9 +24,9 @@ export function configureApiClient() {
  */
 export function setApiToken(token: string | null) {
   if (token) {
-    localStorage.setItem("access_token", token);
+    localStorage.setItem("auth_token", token);
   } else {
-    localStorage.removeItem("access_token");
+    localStorage.removeItem("auth_token");
   }
 }
 
@@ -34,14 +34,14 @@ export function setApiToken(token: string | null) {
  * Get the current authentication token
  */
 export function getApiToken(): string | null {
-  return localStorage.getItem("access_token");
+  return localStorage.getItem("auth_token");
 }
 
 /**
  * Clear the authentication token
  */
 export function clearApiToken() {
-  localStorage.removeItem("access_token");
+  localStorage.removeItem("auth_token");
 }
 
 // Initialize the API client when this module is imported

@@ -28,11 +28,14 @@ import {
   ColorPalette,
   ExtractedColor,
 } from "../services/ColorExtractionService";
-import { MessagesService } from "../services/MessagesService";
+import { MessagesService } from "../services/openapi/services/MessagesService";
+import { CreateMessageDto } from "../services/openapi/models/CreateMessageDto";
+import { useAuth } from "../hooks";
 
 type CreationMode = "photo" | "manual";
 
 const PaletteCreator: React.FC = () => {
+  const { user } = useAuth();
   const [creationMode, setCreationMode] = useState<CreationMode>("photo");
   const [currentPalette, setCurrentPalette] = useState<ColorPalette | null>(
     null
@@ -156,6 +159,11 @@ const PaletteCreator: React.FC = () => {
   };
 
   const handleSendToFriends = async (friendIds: string[]) => {
+    if (!user) {
+      showMessage("Please login to send palettes", "danger");
+      return;
+    }
+
     if (!currentPalette) {
       showMessage("No palette to send", "danger");
       return;
@@ -164,12 +172,18 @@ const PaletteCreator: React.FC = () => {
     try {
       setIsLoading(true);
 
-      // Send color palette directly to friends
-      await MessagesService.sendDirectColorPalette(
-        currentPalette.colors.map((color) => color.hex),
-        friendIds,
-        currentPalette.imageUrl
+      // Send color palette to each friend using the OpenAPI MessagesService
+      const sendPromises = friendIds.map((friendId) =>
+        MessagesService.messagesControllerCreate({
+          senderId: user.id,
+          recipientId: friendId,
+          deviceId: friendId, // Using friendId as deviceId - this might need adjustment based on your backend logic
+          colors: currentPalette.colors.map((color) => color.hex),
+          content: "Shared a color palette with you!",
+        })
       );
+
+      await Promise.all(sendPromises);
 
       showMessage(
         `Palette sent to ${friendIds.length} friend${

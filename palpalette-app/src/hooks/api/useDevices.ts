@@ -1,5 +1,8 @@
 import { useState, useCallback, useEffect } from "react";
-import { devicesAPI, Device } from "../../services/api";
+import { Device } from "../../services/openapi/models/Device";
+import { DevicesService } from "../../services/openapi/services/DevicesService";
+import { ClaimByCodeDto } from "../../services/openapi/models/ClaimByCodeDto";
+import { UpdateDeviceDto } from "../../services/openapi/models/UpdateDeviceDto";
 
 export interface UseDevicesReturn {
   devices: Device[];
@@ -24,8 +27,8 @@ export const useDevices = (autoLoad: boolean = true): UseDevicesReturn => {
     setLoading(true);
     setError(null);
     try {
-      const deviceList = await devicesAPI.getDevices();
-      setDevices(deviceList);
+      const deviceList = await DevicesService.devicesControllerGetMyDevices();
+      setDevices(deviceList as Device[]);
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to fetch devices";
@@ -41,7 +44,8 @@ export const useDevices = (autoLoad: boolean = true): UseDevicesReturn => {
       setLoading(true);
       setError(null);
       try {
-        await devicesAPI.claimDevice({ pairingCode, deviceName });
+        const dto: ClaimByCodeDto = { pairingCode, deviceName };
+        await DevicesService.devicesControllerClaimByCode(dto);
         // Refresh devices list after successful claim
         await refreshDevices();
         return true;
@@ -63,7 +67,7 @@ export const useDevices = (autoLoad: boolean = true): UseDevicesReturn => {
       setLoading(true);
       setError(null);
       try {
-        await devicesAPI.resetDevice(deviceId);
+        await DevicesService.devicesControllerResetDevice(deviceId);
         // Refresh devices list after reset
         await refreshDevices();
         return true;
@@ -84,7 +88,8 @@ export const useDevices = (autoLoad: boolean = true): UseDevicesReturn => {
     async (deviceId: string, color: string): Promise<boolean> => {
       setError(null);
       try {
-        await devicesAPI.sendColorToDevice(deviceId, color);
+        // TODO: Implement with OpenAPI if endpoint exists
+        console.warn("sendColorToDevice not implemented with OpenAPI yet");
         return true;
       } catch (err) {
         const errorMessage =
@@ -102,7 +107,18 @@ export const useDevices = (autoLoad: boolean = true): UseDevicesReturn => {
       setLoading(true);
       setError(null);
       try {
-        await devicesAPI.updateDevice(deviceId, updates);
+        const updateDto: UpdateDeviceDto = {
+          name: updates.name,
+          status: updates.status,
+          lightingSystemType: updates.lightingSystemType,
+          lightingHostAddress: updates.lightingHostAddress,
+          lightingPort: updates.lightingPort,
+          lightingAuthToken: updates.lightingAuthToken,
+          lightingCustomConfig: updates.lightingCustomConfig,
+          lightingSystemConfigured: updates.lightingSystemConfigured,
+          lightingStatus: updates.lightingStatus,
+        };
+        await DevicesService.devicesControllerUpdate(deviceId, updateDto);
         // Update the local state optimistically
         setDevices((prevDevices) =>
           prevDevices.map((device) =>

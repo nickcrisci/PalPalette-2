@@ -5,7 +5,6 @@ import React, {
   ReactNode,
   useCallback,
 } from "react";
-import { authService } from "../services/AuthService";
 
 export interface User {
   id: string;
@@ -45,12 +44,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const loadStoredAuth = useCallback(async () => {
     try {
       setLoading(true);
-      const storedToken = await authService.getStoredToken();
-      const storedUser = await authService.getStoredUser();
-
-      if (storedToken && storedUser) {
+      const storedToken = localStorage.getItem("auth_token");
+      const userStr = localStorage.getItem("auth_user");
+      if (storedToken && userStr) {
         setToken(storedToken);
-        setUser(storedUser);
+        setUser(JSON.parse(userStr));
         console.log("✅ Loaded stored authentication data");
       }
     } catch (error) {
@@ -67,11 +65,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
    */
   const refreshUser = useCallback(async (): Promise<void> => {
     try {
-      // The auth service will handle token refresh automatically via interceptors
-      // Just reload the stored user data
-      const storedUser = await authService.getStoredUser();
-      if (storedUser) {
-        setUser(storedUser);
+      const userStr = localStorage.getItem("auth_user");
+      if (userStr) {
+        setUser(JSON.parse(userStr));
       }
     } catch (error) {
       console.error("❌ Failed to refresh user data:", error);
@@ -84,14 +80,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
       setLoading(true);
-      const { token: authToken, user: userData } = await authService.login(
-        email,
-        password
+      const { AuthenticationService } = await import(
+        "../services/openapi/services/AuthenticationService"
       );
-
-      setToken(authToken);
+      const loginDto = { email, password };
+      const data = await AuthenticationService.authControllerLogin(loginDto);
+      console.log(data);
+      const { access_token, refresh_token, user: userData } = data;
+      localStorage.setItem("auth_token", access_token);
+      localStorage.setItem("refresh_token", refresh_token);
+      localStorage.setItem("auth_user", JSON.stringify(userData));
+      setToken(access_token);
       setUser(userData);
-
       console.log("✅ Login successful");
       return true;
     } catch (error) {
@@ -112,15 +112,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   ): Promise<boolean> => {
     try {
       setLoading(true);
-      const { token: authToken, user: userData } = await authService.register(
-        email,
-        password,
-        displayName
+      const { AuthenticationService } = await import(
+        "../services/openapi/services/AuthenticationService"
       );
-
-      setToken(authToken);
+      const registerDto = { email, password, displayName };
+      const data = await AuthenticationService.authControllerRegister(
+        registerDto
+      );
+      const { access_token, refresh_token, user: userData } = data;
+      localStorage.setItem("auth_token", access_token);
+      localStorage.setItem("refresh_token", refresh_token);
+      localStorage.setItem("auth_user", JSON.stringify(userData));
+      setToken(access_token);
       setUser(userData);
-
       console.log("✅ Registration successful");
       return true;
     } catch (error) {
@@ -137,11 +141,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = async (): Promise<void> => {
     try {
       setLoading(true);
-      await authService.logout();
-
+      localStorage.removeItem("auth_token");
+      localStorage.removeItem("refresh_token");
+      localStorage.removeItem("auth_user");
       setToken(null);
       setUser(null);
-
       console.log("✅ Logout successful");
     } catch (error) {
       console.error("❌ Logout failed:", error);

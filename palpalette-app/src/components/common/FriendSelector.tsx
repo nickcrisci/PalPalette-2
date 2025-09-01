@@ -18,8 +18,6 @@ import {
   IonIcon,
 } from "@ionic/react";
 import { person, send } from "ionicons/icons";
-import axios from "axios";
-import { getApiUrl, API_CONFIG } from "../../config/api";
 import { useAuth } from "../../hooks/useContexts";
 
 interface Friend {
@@ -49,18 +47,15 @@ export const FriendSelector: React.FC<FriendSelectorProps> = ({
 
   const loadFriends = useCallback(async () => {
     if (!token) return;
-
     try {
       setLoadingFriends(true);
-      const response = await axios.get(
-        getApiUrl(API_CONFIG.ENDPOINTS.FRIENDS.LIST),
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+      // Use generated UsersService
+      const { UsersService } = await import(
+        "../../services/openapi/services/UsersService"
       );
-      setFriends(response.data);
+      // The OpenAPI client should handle auth automatically if configured
+      const friendsList = await UsersService.usersControllerGetFriends();
+      setFriends(friendsList);
     } catch (error) {
       console.error("Error loading friends:", error);
     } finally {

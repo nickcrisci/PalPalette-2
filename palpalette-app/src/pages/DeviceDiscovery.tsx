@@ -34,19 +34,18 @@ import {
   refreshOutline,
   warningOutline,
 } from "ionicons/icons";
-import { Preferences } from "@capacitor/preferences";
-import { devicesAPI } from "../services/api";
-import type { UnpairedDevice } from "../services/api";
+import { DevicesService } from "../services/openapi/services/DevicesService";
+import type { Device } from "../services/openapi/models/Device";
 import { RefresherEventDetail } from "@ionic/core";
 
 interface PairingAlert {
   isOpen: boolean;
-  device: UnpairedDevice | null;
+  device: Device | null;
   pairingCode: string;
 }
 
 export const DeviceDiscovery: React.FC = () => {
-  const [devices, setDevices] = useState<UnpairedDevice[]>([]);
+  const [devices, setDevices] = useState<Device[]>([]);
   const [isScanning, setIsScanning] = useState(false);
   const [isPairing, setIsPairing] = useState(false);
   const [discoveryMode, setDiscoveryMode] = useState<"local" | "global">(
@@ -75,11 +74,10 @@ export const DeviceDiscovery: React.FC = () => {
     setIsScanning(true);
     try {
       console.log("🔍 Scanning for unpaired devices...");
-      const response = await devicesAPI.discoverUnpairedDevices();
+      const response =
+        await DevicesService.devicesControllerDiscoverUnpairedDevices();
       setDevices(response.devices || []);
-
       console.log(`📱 Found ${response.devices?.length || 0} devices`);
-
       if (!response.devices || response.devices.length === 0) {
         showToast(
           "No unpaired devices found. Make sure your device is powered on and connected to WiFi.",
@@ -102,7 +100,7 @@ export const DeviceDiscovery: React.FC = () => {
     }
   }, []);
 
-  const startPairing = (device: UnpairedDevice) => {
+  const startPairing = (device: Device) => {
     console.log("🔗 Starting pairing for device:", device.name);
 
     if (discoveryMode === "local") {
@@ -119,13 +117,13 @@ export const DeviceDiscovery: React.FC = () => {
     }
   };
 
-  const pairDeviceDirectly = async (device: UnpairedDevice) => {
+  const pairDeviceDirectly = async (device: Device) => {
     console.log(`🔗 Auto-pairing local device: ${device.name}`);
     setIsPairing(true);
 
     try {
       // Check if user is authenticated first
-      const { value: token } = await Preferences.get({ key: "authToken" });
+      const token = localStorage.getItem("auth_token");
       if (!token) {
         console.log(
           "⚠️ User not authenticated, falling back to manual pairing"
@@ -134,7 +132,8 @@ export const DeviceDiscovery: React.FC = () => {
       }
 
       // For local network devices, we can get the pairing code from the device
-      const pairingInfo = await devicesAPI.getDevicePairingInfo(device.id);
+      const pairingInfo =
+        await DevicesService.devicesControllerGetDevicePairingInfo(device.id);
       console.log("🔍 Pairing info received:", pairingInfo);
 
       console.log("🔗 Attempting claimByCode with:", {
@@ -142,7 +141,7 @@ export const DeviceDiscovery: React.FC = () => {
         deviceName: device.name,
       });
 
-      await devicesAPI.claimByCode({
+      await DevicesService.devicesControllerClaimByCode({
         pairingCode: pairingInfo.pairingCode,
         deviceName: device.name,
       });
@@ -157,22 +156,8 @@ export const DeviceDiscovery: React.FC = () => {
     } catch (error: unknown) {
       console.error("Auto-pairing failed:", error);
 
-      // Log detailed error information
-      if (error && typeof error === "object" && "response" in error) {
-        const axiosError = error as any;
-        console.error("📍 Full error details:", {
-          status: axiosError.response?.status,
-          statusText: axiosError.response?.statusText,
-          data: axiosError.response?.data,
-          headers: axiosError.response?.headers,
-          config: {
-            url: axiosError.config?.url,
-            method: axiosError.config?.method,
-            data: axiosError.config?.data,
-            headers: axiosError.config?.headers,
-          },
-        });
-      }
+      // Log generic error information
+      console.error("📍 Error details:", error);
 
       const errorMessage =
         error instanceof Error
@@ -201,7 +186,7 @@ export const DeviceDiscovery: React.FC = () => {
     try {
       console.log(`🔗 Attempting to pair device: ${pairingAlert.device.name}`);
 
-      await devicesAPI.claimByCode({
+      await DevicesService.devicesControllerClaimByCode({
         pairingCode: pairingAlert.pairingCode.trim().toUpperCase(),
         deviceName: pairingAlert.device.name,
       });
@@ -369,7 +354,7 @@ export const DeviceDiscovery: React.FC = () => {
               <IonList>
                 {devices.map((device) => {
                   const expired = isPairingCodeExpired(
-                    device.pairingCodeExpires
+                    device.pairingCodeExpiresAt
                   );
 
                   return (
@@ -378,14 +363,14 @@ export const DeviceDiscovery: React.FC = () => {
                         icon={
                           expired
                             ? warningOutline
-                            : device.isActive
+                            : device.status === "active"
                             ? checkmarkCircle
                             : timeOutline
                         }
                         color={
                           expired
                             ? "warning"
-                            : device.isActive
+                            : device.status === "active"
                             ? "success"
                             : "medium"
                         }
@@ -402,7 +387,7 @@ export const DeviceDiscovery: React.FC = () => {
                         </p>
                         <p>
                           <strong>Last seen:</strong>{" "}
-                          {formatLastSeen(device.lastSeen)}
+                          {formatLastSeen(device.lastSeenAt)}
                         </p>
                         {expired && (
                           <IonNote color="warning">
@@ -511,7 +496,7 @@ export const DeviceDiscovery: React.FC = () => {
                     `🔗 Attempting to pair device: ${pairingAlert.device.name}`
                   );
 
-                  await devicesAPI.claimByCode({
+                  await DevicesService.devicesControllerClaimByCode({
                     pairingCode: data.pairingCode.trim().toUpperCase(),
                     deviceName: pairingAlert.device.name,
                   });
