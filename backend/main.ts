@@ -1,6 +1,7 @@
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./src/app.module";
 import { ValidationPipe } from "@nestjs/common";
+import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
 import * as dotenv from "dotenv";
 dotenv.config();
 
@@ -36,10 +37,23 @@ async function bootstrap() {
     credentials: true,
   });
 
+  // Setup Swagger/OpenAPI documentation
+  const config = new DocumentBuilder()
+    .setTitle("PalPalette API")
+    .setDescription(
+      "API for PalPalette color sharing and device management system"
+    )
+    .setVersion("1.0")
+    .addBearerAuth()
+    .build();
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup("api", app, document);
+
   // Listen on all interfaces (0.0.0.0) so external devices can connect
   await app.listen(3000, "0.0.0.0");
 
   console.log("Backend server started on http://0.0.0.0:3000");
+  console.log("OpenAPI documentation available at http://0.0.0.0:3000/api");
   console.log("WebSocket server available for edge devices");
 }
 bootstrap();

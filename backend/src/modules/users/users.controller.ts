@@ -9,6 +9,7 @@ import {
   UseGuards,
   Request,
 } from "@nestjs/common";
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { UsersService } from "./users.service";
 import { FriendsService } from "./friends.service";
@@ -24,6 +25,7 @@ import {
   SendPaletteToFriendsDto,
 } from "./dto/color-palette.dto";
 
+@ApiTags('Users')
 @Controller("users")
 export class UsersController {
   constructor(
@@ -33,6 +35,10 @@ export class UsersController {
   ) {}
 
   @Post("register")
+  @ApiOperation({ summary: 'Register a new user (deprecated - use /auth/register)' })
+  @ApiResponse({ status: 201, description: 'User successfully registered' })
+  @ApiResponse({ status: 400, description: 'Bad request - validation error' })
+  @ApiResponse({ status: 409, description: 'User already exists' })
   async register(@Body() registerUserDto: RegisterUserDto) {
     return this.usersService.register(registerUserDto);
   }
@@ -40,12 +46,24 @@ export class UsersController {
   // Friends endpoints - must come before :id route
   @UseGuards(JwtAuthGuard)
   @Post("friends/request")
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Send a friend request' })
+  @ApiResponse({ status: 201, description: 'Friend request sent successfully' })
+  @ApiResponse({ status: 400, description: 'Bad request - validation error' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Target user not found' })
   async sendFriendRequest(@Request() req, @Body() dto: SendFriendRequestDto) {
     return this.friendsService.sendFriendRequest(req.user.userId, dto);
   }
 
   @UseGuards(JwtAuthGuard)
   @Post("friends/respond")
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Respond to a friend request' })
+  @ApiResponse({ status: 200, description: 'Response recorded successfully' })
+  @ApiResponse({ status: 400, description: 'Bad request - validation error' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Friend request not found' })
   async respondToFriendRequest(
     @Request() req,
     @Body() dto: RespondToFriendRequestDto
@@ -55,18 +73,30 @@ export class UsersController {
 
   @UseGuards(JwtAuthGuard)
   @Get("friends")
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get list of friends' })
+  @ApiResponse({ status: 200, description: 'List of friends retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getFriends(@Request() req) {
     return this.friendsService.getFriends(req.user.userId);
   }
 
   @UseGuards(JwtAuthGuard)
   @Get("friends/pending")
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get pending friend requests received' })
+  @ApiResponse({ status: 200, description: 'Pending requests retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getPendingRequests(@Request() req) {
     return this.friendsService.getPendingRequests(req.user.userId);
   }
 
   @UseGuards(JwtAuthGuard)
   @Get("friends/sent")
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get friend requests sent by user' })
+  @ApiResponse({ status: 200, description: 'Sent requests retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getSentRequests(@Request() req) {
     return this.friendsService.getSentRequests(req.user.userId);
   }
