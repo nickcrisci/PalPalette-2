@@ -10,6 +10,13 @@ import {
   Request,
   Put,
 } from "@nestjs/common";
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiParam,
+} from "@nestjs/swagger";
 import { DevicesService } from "./devices.service";
 import { UpdateDeviceDto } from "./dto/device-management/update-device.dto";
 import { RegisterDeviceDto } from "./dto/device-pairing/register-device.dto";
@@ -29,6 +36,7 @@ import { DeviceRegistrationService } from "./services/device-registration.servic
 import { DevicePairingService } from "./services/device-pairing.service";
 import { LightingSystemsService } from "./lighting-systems.service";
 
+@ApiTags("Devices")
 @Controller("devices")
 export class DevicesController {
   constructor(
@@ -41,12 +49,27 @@ export class DevicesController {
   // New self-setup endpoints
   @Public()
   @Post("register")
+  @ApiOperation({ summary: "Register a new device (self-setup)" })
+  @ApiResponse({ status: 201, description: "Device registered successfully" })
+  @ApiResponse({ status: 400, description: "Bad request - validation error" })
+  @ApiResponse({ status: 409, description: "Device already exists" })
   async registerDevice(@Body() registerDeviceDto: RegisterDeviceDto) {
     return this.deviceRegistrationService.registerDevice(registerDeviceDto);
   }
 
   @Public()
   @Get("pairing-code/:deviceId")
+  @ApiOperation({ summary: "Get pairing code for device" })
+  @ApiParam({
+    name: "deviceId",
+    description: "Device ID",
+    example: "device-uuid",
+  })
+  @ApiResponse({
+    status: 200,
+    description: "Pairing code retrieved successfully",
+  })
+  @ApiResponse({ status: 404, description: "Device not found" })
   async getPairingCode(@Param("deviceId") deviceId: string) {
     const pairingCode = await this.devicePairingService.getPairingCode(
       deviceId
@@ -56,6 +79,15 @@ export class DevicesController {
 
   @UseGuards(JwtAuthGuard)
   @Post("claim-by-code")
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Claim a device using pairing code" })
+  @ApiResponse({ status: 201, description: "Device claimed successfully" })
+  @ApiResponse({
+    status: 400,
+    description: "Bad request - invalid pairing code",
+  })
+  @ApiResponse({ status: 401, description: "Unauthorized" })
+  @ApiResponse({ status: 404, description: "Device or pairing code not found" })
   async claimByCode(@Request() req, @Body() claimByCodeDto: ClaimByCodeDto) {
     console.log("🔍 Claim request - User:", req.user);
     console.log("🔍 User ID:", req.user.userId);
@@ -76,6 +108,13 @@ export class DevicesController {
 
   @UseGuards(JwtAuthGuard)
   @Delete(":id/reset")
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Reset device to unclaimed state" })
+  @ApiParam({ name: "id", description: "Device ID", example: "device-uuid" })
+  @ApiResponse({ status: 200, description: "Device reset successfully" })
+  @ApiResponse({ status: 401, description: "Unauthorized" })
+  @ApiResponse({ status: 403, description: "Forbidden - not device owner" })
+  @ApiResponse({ status: 404, description: "Device not found" })
   async resetDevice(@Param("id") id: string, @Request() req) {
     await this.devicePairingService.resetDevice(id, req.user.userId);
     return { message: "Device reset successfully" };
@@ -83,6 +122,14 @@ export class DevicesController {
 
   @Public()
   @Put(":id/status")
+  @ApiOperation({ summary: "Update device status (for device self-reporting)" })
+  @ApiParam({ name: "id", description: "Device ID", example: "device-uuid" })
+  @ApiResponse({
+    status: 200,
+    description: "Device status updated successfully",
+  })
+  @ApiResponse({ status: 400, description: "Bad request - validation error" })
+  @ApiResponse({ status: 404, description: "Device not found" })
   async updateStatus(
     @Param("id") id: string,
     @Body() updateStatusDto: UpdateStatusDto
