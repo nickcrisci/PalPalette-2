@@ -30,7 +30,7 @@ import {
 } from "@ionic/react";
 import { add, wifi, time, settings, bulb } from "ionicons/icons";
 import { useDevices } from "../hooks/useContexts";
-import { Device } from "../services/api";
+import { Device } from "../services/openapi/models/Device";
 import { PairingCodeModal } from "../components/devices";
 import { DeviceSettingsModal } from "../components/devices";
 import { SetupWizardModal } from "../components/devices";
@@ -350,10 +350,6 @@ const DevicesWithLighting: React.FC = () => {
         <SetupWizardModal
           isOpen={showSetupWizard}
           onClose={() => setShowSetupWizard(false)}
-          onOpenPairingModal={() => {
-            setShowSetupWizard(false);
-            setShowPairingModal(true);
-          }}
         />
 
         {selectedDevice && (

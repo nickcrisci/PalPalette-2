@@ -24,12 +24,13 @@ import {
   RefresherEventDetail,
 } from "@ionic/react";
 import { colorPalette, play, time, person, tvOutline } from "ionicons/icons";
-import { MessagesService, ColorMessage } from "../services/MessagesService";
-import { Device, devicesAPI } from "../services/api";
+import { Message } from "../services/openapi/models/Message";
+import { Device } from "../services/openapi/models/Device";
+import { DevicesService } from "../services/openapi/services/DevicesService";
 import "./Messages.css";
 
 const Messages: React.FC = () => {
-  const [messages, setMessages] = useState<ColorMessage[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [devices, setDevices] = useState<Device[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDevice, setSelectedDevice] = useState<string>("");
@@ -41,12 +42,13 @@ const Messages: React.FC = () => {
       try {
         setLoading(true);
         const [messagesData, devicesData] = await Promise.all([
-          MessagesService.getReceivedMessages(),
-          devicesAPI.getDevices(),
+          // TODO: Implement proper message fetching with OpenAPI
+          Promise.resolve([]), // MessagesService.messagesControllerFindAll(),
+          DevicesService.devicesControllerGetMyDevices(),
         ]);
 
-        setMessages(messagesData);
-        setDevices(devicesData);
+        setMessages(messagesData as Message[]);
+        setDevices(devicesData as Device[]);
 
         // Auto-select first device if available
         if (devicesData.length > 0 && !selectedDevice) {
@@ -67,12 +69,13 @@ const Messages: React.FC = () => {
     try {
       setLoading(true);
       const [messagesData, devicesData] = await Promise.all([
-        MessagesService.getReceivedMessages(),
-        devicesAPI.getDevices(),
+        // TODO: Implement proper message fetching with OpenAPI
+        Promise.resolve([]), // MessagesService.messagesControllerFindAll(),
+        DevicesService.devicesControllerGetMyDevices(),
       ]);
 
-      setMessages(messagesData);
-      setDevices(devicesData);
+      setMessages(messagesData as Message[]);
+      setDevices(devicesData as Device[]);
 
       // Auto-select first device if available
       if (devicesData.length > 0 && !selectedDevice) {
@@ -98,15 +101,12 @@ const Messages: React.FC = () => {
     }
 
     try {
-      const result = await MessagesService.replayMessageOnDevice(
+      // TODO: Implement message replay with OpenAPI
+      console.warn("Message replay not implemented with OpenAPI yet", {
         messageId,
-        selectedDevice
-      );
-      if (result.success) {
-        showMessage("Color palette sent to your device!");
-      } else {
-        showMessage(result.message || "Failed to send to device");
-      }
+        selectedDevice,
+      });
+      showMessage("Message replay feature not available yet");
     } catch (error) {
       console.error("Error replaying message:", error);
       showMessage("Failed to replay message");
@@ -133,15 +133,15 @@ const Messages: React.FC = () => {
     }
   };
 
-  const renderColorPalette = (colors: Array<{ hex: string }>) => {
+  const renderColorPalette = (colors: Array<Record<string, any>>) => {
     return (
       <div className="color-palette-preview">
         {colors.slice(0, 6).map((color, index) => (
           <div
             key={index}
             className="color-swatch"
-            style={{ backgroundColor: color.hex }}
-            title={color.hex}
+            style={{ backgroundColor: color.hex || "#000000" }}
+            title={color.hex || "#000000"}
           />
         ))}
         {colors.length > 6 && (
@@ -226,7 +226,7 @@ const Messages: React.FC = () => {
                     <div className="message-header">
                       <div className="sender-info">
                         <IonIcon icon={person} />
-                        <span>{message.senderName}</span>
+                        <span>{message.sender.displayName}</span>
                       </div>
                       <div className="message-time">
                         <IonIcon icon={time} />

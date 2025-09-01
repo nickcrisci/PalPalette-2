@@ -22,8 +22,6 @@ import {
   IonRefresherContent,
 } from "@ionic/react";
 import { person, checkmark, close, mail } from "ionicons/icons";
-import axios from "axios";
-import { getApiUrl, API_CONFIG } from "../config/api";
 import { useAuth } from "../hooks/useContexts";
 
 interface Friend {
@@ -62,22 +60,17 @@ const Friends: React.FC = () => {
   };
 
   const loadData = useCallback(async () => {
-    if (!token) return;
-
     try {
       setIsLoading(true);
-
-      const [friendsRes, pendingRes] = await Promise.all([
-        axios.get(getApiUrl(API_CONFIG.ENDPOINTS.FRIENDS.LIST), {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        axios.get(getApiUrl(API_CONFIG.ENDPOINTS.FRIENDS.PENDING), {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
+      const { UsersService } = await import(
+        "../services/openapi/services/UsersService"
+      );
+      const [friendsList, pendingList] = await Promise.all([
+        UsersService.usersControllerGetFriends(),
+        UsersService.usersControllerGetPendingRequests(),
       ]);
-
-      setFriends(friendsRes.data);
-      setPendingRequests(pendingRes.data);
+      setFriends(friendsList);
+      setPendingRequests(pendingList);
     } catch (error) {
       console.error("Error loading friends:", error);
       showMessage("Failed to load friends", "danger");
@@ -91,22 +84,18 @@ const Friends: React.FC = () => {
   }, [loadData]);
 
   const sendFriendRequest = async () => {
-    if (!friendEmail.trim() || !token) {
+    if (!friendEmail.trim()) {
       showMessage("Please enter a valid email", "danger");
       return;
     }
-
     try {
       setIsLoading(true);
-
-      await axios.post(
-        getApiUrl(API_CONFIG.ENDPOINTS.FRIENDS.SEND_REQUEST),
-        { email: friendEmail.trim() },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+      const { UsersService } = await import(
+        "../services/openapi/services/UsersService"
       );
-
+      await UsersService.usersControllerSendFriendRequest({
+        email: friendEmail.trim(),
+      });
       showMessage("Friend request sent!");
       setFriendEmail("");
     } catch (error) {
@@ -121,19 +110,21 @@ const Friends: React.FC = () => {
     requestId: string,
     action: "accept" | "decline"
   ) => {
-    if (!token) return;
-
     try {
       setIsLoading(true);
-
-      await axios.post(
-        getApiUrl(API_CONFIG.ENDPOINTS.FRIENDS.RESPOND),
-        { friendshipId: requestId, action },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+      const { UsersService } = await import(
+        "../services/openapi/services/UsersService"
       );
-
+      const { RespondToFriendRequestDto } = await import(
+        "../services/openapi/models/RespondToFriendRequestDto"
+      );
+      await UsersService.usersControllerRespondToFriendRequest({
+        friendshipId: requestId,
+        action:
+          action === "accept"
+            ? RespondToFriendRequestDto.action.ACCEPT
+            : RespondToFriendRequestDto.action.DECLINE,
+      });
       showMessage(`Friend request ${action}ed!`);
       await loadData(); // Refresh data
     } catch (error) {

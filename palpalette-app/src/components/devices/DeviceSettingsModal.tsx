@@ -30,7 +30,7 @@ import {
   wifiOutline,
   timeOutline,
 } from "ionicons/icons";
-import { Device } from "../../services/api";
+import { Device } from "../../services/openapi/models/Device";
 import { useLoading, useToast } from "../../hooks";
 
 interface DeviceSettingsModalProps {
@@ -55,29 +55,22 @@ const DeviceSettingsModal: React.FC<DeviceSettingsModalProps> = ({
 
     try {
       await withLoading(onDeviceReset(device.id));
-
       showSuccess(
         "Device reset successfully! It can now be paired with a new account."
       );
-
-      // Close modal after success
       setTimeout(() => {
         onClose();
       }, 3000);
-    } catch (error: unknown) {
-      const axiosError = error as {
-        response?: { status?: number; data?: { message?: string } };
-      };
+    } catch (error: any) {
+      // OpenAPI errors may be plain Error or ApiError
       let message = "Failed to reset device";
-
-      if (axiosError.response?.status === 404) {
+      if (error?.status === 404) {
         message = "Device not found. It may have already been reset.";
-      } else if (axiosError.response?.status === 403) {
+      } else if (error?.status === 403) {
         message = "You don't have permission to reset this device.";
-      } else if (axiosError.response?.data?.message) {
-        message = axiosError.response.data.message;
+      } else if (error?.message) {
+        message = error.message;
       }
-
       showError(message);
     }
   };

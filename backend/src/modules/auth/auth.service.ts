@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { UsersService } from "../users/users.service";
 import { JwtService } from "@nestjs/jwt";
 import { LoginUserDto } from "../users/dto/login-user.dto";
+import { LoginRequestDto } from "./dto/login-request.dto";
 import * as bcrypt from "bcrypt";
 import { v4 as uuidv4 } from "uuid";
 
@@ -34,10 +35,10 @@ export class AuthService {
     return user;
   }
 
-  async login(loginUserDto: LoginUserDto & { device_name?: string }) {
+  async login(loginRequestDto: LoginRequestDto) {
     const user = await this.validateUser(
-      loginUserDto.email,
-      loginUserDto.password
+      loginRequestDto.email,
+      loginRequestDto.password
     );
     if (!user) throw new UnauthorizedException("Invalid credentials");
 
@@ -45,7 +46,7 @@ export class AuthService {
     const accessToken = this.jwtService.sign(payload, { expiresIn: "15m" }); // Short-lived access token
     const refreshToken = this.generateRefreshToken(
       user.id,
-      loginUserDto.device_name
+      loginRequestDto.device_name
     );
 
     return {

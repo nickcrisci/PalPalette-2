@@ -29,7 +29,7 @@ import {
 } from "@ionic/react";
 import { wifi, time, settings, bulb, add } from "ionicons/icons";
 import { useDevices } from "../hooks/useContexts";
-import { Device } from "../services/api";
+import { Device } from "../services/openapi/models/Device";
 import {
   PairingCodeModal,
   DeviceSettingsModal,

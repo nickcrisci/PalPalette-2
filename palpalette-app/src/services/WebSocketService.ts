@@ -1,9 +1,29 @@
 import { EventEmitter } from "events";
-import {
-  UserNotification,
-  DeviceStatusEvent,
-  LightingSystemStatusEvent,
-} from "./api/types";
+import { UserNotificationDto } from "./openapi/models/UserNotificationDto";
+
+// WebSocket event types (not part of OpenAPI as they are runtime events)
+export interface DeviceStatusEvent {
+  deviceId: string;
+  isOnline: boolean;
+  timestamp: string;
+  batteryLevel?: number;
+  isProvisioned?: boolean;
+  firmwareVersion?: string;
+  ipAddress?: string;
+  macAddress?: string;
+  wifiRSSI?: number;
+  freeHeap?: number;
+  uptime?: number;
+}
+
+export interface LightingSystemStatusEvent {
+  deviceId: string;
+  isReady: boolean;
+  hasLightingSystem: boolean;
+  systemType?: string;
+  status?: string;
+  capabilities?: Record<string, unknown>;
+}
 
 export class WebSocketService extends EventEmitter {
   private ws: WebSocket | null = null;
@@ -130,17 +150,18 @@ export class WebSocketService extends EventEmitter {
   }
 
   private handleUserActionRequired(data: Record<string, unknown>): void {
-    const notification: UserNotification = {
+    const notification: UserNotificationDto = {
       deviceId: data.deviceId as string,
-      deviceName: data.deviceName as string,
-      action: data.action as string,
+      action: data.action as UserNotificationDto.action,
+      message: (data.instructions as string) || "",
       instructions: data.instructions as string,
       timeout: data.timeout as number,
-      type: data.type as string,
-      systemType: data.systemType as string,
-      displayMessage: data.displayMessage as string,
       timestamp: data.timestamp as number,
-      isRead: false,
+      additionalData: {
+        deviceName: data.deviceName as string,
+        systemType: data.systemType as string,
+        displayMessage: data.displayMessage as string,
+      },
     };
 
     console.log("🔔 User action required:", notification);
@@ -158,7 +179,7 @@ export class WebSocketService extends EventEmitter {
       wifiRSSI: data.wifiRSSI as number,
       freeHeap: data.freeHeap as number,
       uptime: data.uptime as number,
-      timestamp: data.timestamp as number,
+      timestamp: String(data.timestamp) || new Date().toISOString(),
     };
 
     console.log("📱 Device status update:", status);
@@ -173,7 +194,6 @@ export class WebSocketService extends EventEmitter {
       systemType: data.systemType as string,
       status: data.status as string,
       capabilities: data.capabilities as Record<string, unknown>,
-      timestamp: data.timestamp as number,
     };
 
     console.log("💡 Lighting system status update:", status);

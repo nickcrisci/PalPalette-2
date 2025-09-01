@@ -84,6 +84,7 @@ const LoginPage: React.FC = () => {
     async (data: LoginFormData) => {
       try {
         const success = await login(data.email, data.password);
+        console.log(success);
         if (success) {
           presentToast({
             message: "Welcome back! 🎨",
@@ -101,12 +102,17 @@ const LoginPage: React.FC = () => {
         }
       } catch (error: any) {
         let message = "An unexpected error occurred";
-        if (error?.response?.status === 401) {
+        if (
+          error?.message?.includes("Invalid credentials") ||
+          error?.message?.includes("401")
+        ) {
           message = "Invalid email or password";
-        } else if (error?.response?.status === 422) {
+        } else if (
+          error?.message?.includes("validation error") ||
+          error?.message?.includes("422")
+        ) {
           message = "Please check your credentials";
         }
-
         presentToast({
           message,
           duration: 3000,
@@ -144,12 +150,14 @@ const LoginPage: React.FC = () => {
         }
       } catch (error: any) {
         let message = "Registration failed";
-        if (error?.response?.status === 409) {
+        if (
+          error?.message?.includes("already exists") ||
+          error?.message?.includes("409")
+        ) {
           message = "Email already exists";
-        } else if (error?.response?.data?.message) {
-          message = error.response.data.message;
+        } else if (error?.message) {
+          message = error.message;
         }
-
         presentToast({
           message,
           duration: 3000,
@@ -170,7 +178,7 @@ const LoginPage: React.FC = () => {
 
   // If user is authenticated, redirect
   if (user) {
-    return <Redirect to="/dashboard" />;
+    return <Redirect to="/devices" />;
   }
 
   const currentForm = isLogin ? loginForm : registerForm;

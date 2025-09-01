@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { Device } from "../../services/api";
+import { Device } from "../../services/openapi/models/Device";
 import { useDevices } from "../api";
 
 interface DeviceManagementState {

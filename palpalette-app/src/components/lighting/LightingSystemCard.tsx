@@ -20,6 +20,7 @@ import {
 } from "../../services/LightingSystemService";
 import { useLoading, useToast, useWebSocket } from "../../hooks";
 import { useDeveloperMode } from "../../hooks/useDeveloperMode";
+import { LightingSystemStatusEvent } from "../../services/WebSocketService";
 
 interface LightingSystemCardProps {
   deviceId: string;

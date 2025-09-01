@@ -64,33 +64,22 @@ export const useAuth = (): UseAuthReturn => {
       setError(null);
 
       try {
-        // This would be replaced with actual API call
-        const response = await fetch("/api/auth/login", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ username, password }),
-        });
-
-        if (!response.ok) {
-          throw new Error("Login failed");
-        }
-
-        const data = await response.json();
+        // Use generated AuthenticationService
+        const { AuthenticationService } = await import(
+          "../../services/openapi/services/AuthenticationService"
+        );
+        // Assume username is email for DTO
+        const loginDto = { email: username, password };
+        const data = await AuthenticationService.authControllerLogin(loginDto);
         const { token, user } = data;
 
-        // Store in localStorage
         localStorage.setItem(AUTH_TOKEN_KEY, token);
         localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
-
-        // Update state
         setAuthState({
           isAuthenticated: true,
           token,
           user,
         });
-
         return true;
       } catch (err) {
         const errorMessage =
@@ -115,33 +104,24 @@ export const useAuth = (): UseAuthReturn => {
       setError(null);
 
       try {
-        // This would be replaced with actual API call
-        const response = await fetch("/api/auth/register", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ username, email, password }),
-        });
-
-        if (!response.ok) {
-          throw new Error("Registration failed");
-        }
-
-        const data = await response.json();
+        // Use generated AuthenticationService
+        const { AuthenticationService } = await import(
+          "../../services/openapi/services/AuthenticationService"
+        );
+        // displayName is username for DTO
+        const registerDto = { email, password, displayName: username };
+        const data = await AuthenticationService.authControllerRegister(
+          registerDto
+        );
         const { token, user } = data;
 
-        // Store in localStorage
         localStorage.setItem(AUTH_TOKEN_KEY, token);
         localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
-
-        // Update state
         setAuthState({
           isAuthenticated: true,
           token,
           user,
         });
-
         return true;
       } catch (err) {
         const errorMessage =
