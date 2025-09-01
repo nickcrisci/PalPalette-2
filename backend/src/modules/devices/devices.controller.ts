@@ -142,12 +142,25 @@ export class DevicesController {
 
   @Public()
   @Get("by-mac/:macAddress")
+  @ApiOperation({ summary: "Find device by MAC address" })
+  @ApiParam({
+    name: "macAddress",
+    description: "MAC address of the device",
+    example: "00:1B:44:11:3A:B7",
+  })
+  @ApiResponse({ status: 200, description: "Device found" })
+  @ApiResponse({ status: 404, description: "Device not found" })
   async findDeviceByMacAddress(@Param("macAddress") macAddress: string) {
     return this.devicesService.findByMacAddress(macAddress);
   }
 
   @Public()
   @Get("discover/unpaired")
+  @ApiOperation({ summary: "Discover unpaired devices available for pairing" })
+  @ApiResponse({
+    status: 200,
+    description: "List of discoverable unpaired devices",
+  })
   async discoverUnpairedDevices() {
     console.log("🔍 Discovering unpaired devices...");
 
@@ -231,6 +244,17 @@ export class DevicesController {
   // Lighting System Management Endpoints
   @UseGuards(JwtAuthGuard)
   @Post(":id/lighting/configure")
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Configure lighting system for device" })
+  @ApiParam({ name: "id", description: "Device ID", example: "device-uuid" })
+  @ApiResponse({
+    status: 200,
+    description: "Lighting system configured successfully",
+  })
+  @ApiResponse({ status: 400, description: "Bad request - validation error" })
+  @ApiResponse({ status: 401, description: "Unauthorized" })
+  @ApiResponse({ status: 403, description: "Forbidden - not device owner" })
+  @ApiResponse({ status: 404, description: "Device not found" })
   async configureLightingSystem(
     @Param("id") deviceId: string,
     @Body() config: LightingSystemConfigDto,
@@ -250,6 +274,14 @@ export class DevicesController {
 
   @Public()
   @Patch(":id/lighting")
+  @ApiOperation({ summary: "Update lighting system configuration" })
+  @ApiParam({ name: "id", description: "Device ID", example: "device-uuid" })
+  @ApiResponse({
+    status: 200,
+    description: "Lighting system updated successfully",
+  })
+  @ApiResponse({ status: 400, description: "Bad request - validation error" })
+  @ApiResponse({ status: 404, description: "Device not found" })
   async updateLightingSystem(
     @Param("id") deviceId: string,
     @Body() updates: UpdateLightingSystemDto,
@@ -268,6 +300,17 @@ export class DevicesController {
 
   @UseGuards(JwtAuthGuard)
   @Post(":id/lighting/test")
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Test lighting system connection" })
+  @ApiParam({ name: "id", description: "Device ID", example: "device-uuid" })
+  @ApiResponse({ status: 200, description: "Test completed successfully" })
+  @ApiResponse({ status: 401, description: "Unauthorized" })
+  @ApiResponse({ status: 403, description: "Forbidden - not device owner" })
+  @ApiResponse({ status: 404, description: "Device not found" })
+  @ApiResponse({
+    status: 500,
+    description: "Lighting system connection failed",
+  })
   async testLightingSystem(@Param("id") deviceId: string, @Request() req) {
     // Verify device belongs to user
     const device = await this.devicesService.findOne(deviceId);
@@ -390,16 +433,32 @@ export class DevicesController {
   // Keep existing endpoints for backward compatibility (will be deprecated)
   @UseGuards(JwtAuthGuard)
   @Get("my-devices")
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Get devices owned by current user" })
+  @ApiResponse({
+    status: 200,
+    description: "User devices retrieved successfully",
+  })
+  @ApiResponse({ status: 401, description: "Unauthorized" })
   getMyDevices(@Request() req) {
     return this.devicesService.findUserDevices(req.user.userId);
   }
 
   @Get()
+  @ApiOperation({ summary: "Get all devices (admin)" })
+  @ApiResponse({
+    status: 200,
+    description: "All devices retrieved successfully",
+  })
   findAll() {
     return this.devicesService.findAll();
   }
 
   @Get(":id")
+  @ApiOperation({ summary: "Get device by ID" })
+  @ApiParam({ name: "id", description: "Device ID", example: "device-uuid" })
+  @ApiResponse({ status: 200, description: "Device retrieved successfully" })
+  @ApiResponse({ status: 404, description: "Device not found" })
   findOne(@Param("id") id: string) {
     return this.devicesService.findOne(id);
   }
